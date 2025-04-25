@@ -1,12 +1,13 @@
 import express from "express";
 import cors from "cors";
+import { CLIENT_URL } from "./config/consts.js";
 
 export const initApp = () => {
   const app = express();
 
   app.use(
     cors({
-      origin: process.env.CLIENT_URL || "http://localhost:5173",
+      origin: CLIENT_URL,
       credentials: true,
     })
   );
