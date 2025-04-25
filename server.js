@@ -1,11 +1,8 @@
 import http from "http";
-import dotenv from "dotenv";
 import { initApp } from "./app.js";
 import { connectToDB } from "./config/db.js";
 import { Server } from "socket.io";
 import { CLIENT_URL, PORT } from "./config/consts.js";
-
-dotenv.config();
 
 const startServer = async () => {
   const app = initApp();
