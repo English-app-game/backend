@@ -11,4 +11,6 @@ const scoreSchema = new mongoose.Schema({
      required: true },
 }, { timestamps: true });
 
-export default mongoose.model("Score", scoreSchema);
+const Score = mongoose.model("Score", scoreSchema);
+
+export { Score as ScoreModel}

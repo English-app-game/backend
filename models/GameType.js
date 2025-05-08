@@ -11,4 +11,6 @@ const gameTypeSchema = new mongoose.Schema({
      required: true },
 }, { timestamps: true });
 
-export default mongoose.model("GameType", gameTypeSchema);
+const GameType = mongoose.model("GameType", gameTypeSchema);
+
+export { GameType as GameTypeModel}

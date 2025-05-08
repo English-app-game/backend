@@ -24,4 +24,7 @@ const gameRoomSchema = new mongoose.Schema({
   finishedAt: { type: Date },
 }, { timestamps: true });
 
-export default mongoose.model("GameRoom", gameRoomSchema);
+const GameRoom =  mongoose.model("GameRoom", gameRoomSchema);
+
+export {GameRoom as GameRoomModel}
+
