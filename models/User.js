@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { TABLE_NAMES } from "./tables_names";
 
 const userSchema = new mongoose.Schema({
   name: { type: String,
@@ -9,10 +10,10 @@ const userSchema = new mongoose.Schema({
     required: true },
   avatarImg: { type: String,
      required: true },
-  lastLogin: { type: String, 
+  lastLogin: { type: Date, 
     required: true },
 }, { timestamps: true });
 
-const User =  mongoose.model("User", userSchema);
+const User = mongoose.model(TABLE_NAMES.USER, userSchema);
 
-export { User as Usermodel}
+export { User as UserModel };
