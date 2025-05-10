@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { CLIENT_URL } from "./config/consts.js";
+import loginRoute from "./routes/login.js";
 
 export const initApp = () => {
   const app = express();
@@ -13,6 +14,8 @@ export const initApp = () => {
   );
 
   app.use(express.json());
+  app.use(loginRoute);
+
 
   return app;
 };
