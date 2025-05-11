@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { TABLE_NAMES } from "./tables_names.js";
+import { TABLE_NAMES } from "./tables_names";
 
 const userSchema = new mongoose.Schema({
   name: { type: String,
