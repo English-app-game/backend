@@ -1,4 +1,5 @@
 import { addRoomToDB as addRoomToDbService } from "../services/rooms/addRoomToDB.js";
+import { validateCreateRoomFields } from "../utils/validateCreateRoomFields.js";
 
 async function addRoomToDB(req, res) {
   try {
@@ -10,23 +11,7 @@ async function addRoomToDB(req, res) {
       });
     }
 
-    // ✅ Validate all required fields based on frontend-controlled structure
-    const requiredFields = [
-      "key",
-      "level",
-      "maxPlayers",
-      "players",
-      "gameType",
-      "isActive",
-      "admin",
-      "currentStatus",
-      "createdAt",
-      "chat",
-      "amountOfPlayers",
-    ];
-
-    const missingFields = requiredFields.filter((field) => !(field in roomData));
-
+    const missingFields = validateCreateRoomFields(roomData);
     if (missingFields.length > 0) {
       return res.status(400).json({
         error: `Missing required fields: ${missingFields.join(", ")}`,
