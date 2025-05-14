@@ -1,5 +1,6 @@
 import { addRoomToDB as addRoomToDbService } from "../services/rooms/addRoomToDB.js";
 import { validateCreateRoomFields } from "../utils/validateCreateRoomFields.js";
+import {GameRoomModel} from "../models/GameRoom.js";
 
 async function addRoomToDB(req, res) {
   try {
@@ -30,6 +31,18 @@ async function addRoomToDB(req, res) {
   }
 }
 
+async function getRooms(req,res){
+  try {
+   const rooms = await GameRoomModel.find();
+    console.log("🔥 Rooms fetched from DB:", rooms);
+    res.json(rooms);
+  } catch (err) {
+    console.error("❌ Error in /api/rooms:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+}
+
 export const roomController = {
   addRoomToDB,
+  getRooms,
 };
