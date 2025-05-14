@@ -18,6 +18,11 @@ const gameRoomSchema = new mongoose.Schema({
         type: Boolean,
         required: true
     },
+    isPrivate: {
+        type: Boolean,
+        required: true,
+        default: false 
+    },
     admin: { type: mongoose.Schema.Types.ObjectId, ref: TABLE_NAMES.USER, 
         required: true },
     currentStatus: {
