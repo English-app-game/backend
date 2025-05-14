@@ -5,6 +5,7 @@ import loginRoute from "./routes/login.js";
 import guestRout from "./routes/guest.js"
 import userRouter from "./routes/User-route.js";
 import { USERS_ROUTE } from "./config/consts.js";
+import { router as roomsRouter } from "./routes/rooms/router.js";
 
 export const initApp = () => {
   const app = express();
@@ -21,6 +22,7 @@ export const initApp = () => {
   app.use(guestRout);
 
   app.use(USERS_ROUTE, userRouter);
+  app.use("/api/rooms", roomsRouter);
 
   return app;
 };
