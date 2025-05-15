@@ -5,5 +5,7 @@ const router = express.Router();
 
 router.route("/create").post(roomController.addRoomToDB);
 router.route("/").get(roomController.getRooms);
+router.route("/check/:key").get(roomController.  checkRoomAvailabilityByKey);
+
 
 export { router };

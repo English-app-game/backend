@@ -42,7 +42,37 @@ async function getRooms(req,res){
   }
 }
 
+async function checkRoomAvailabilityByKey(req, res) {
+  try {
+    const { key } = req.params;
+    console.log("🔍 Checking room key:", req.params.key);
+
+    if (!key) {
+      return res.status(400).json({ message: "Room key is required" });
+    }
+
+    const room = await GameRoomModel.findOne({ key });
+    console.log("🔎 Room found:", room);
+
+
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    if (room.amountOfPlayers >= room.maxPlayers) {
+      return res.status(400).json({ message: "Room is full" });
+    }
+
+    return res.json({ message: "Room is available", roomId: room.key });
+  } catch (err) {
+    console.error("❌ Error in checkRoomAvailability:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
+
+
 export const roomController = {
   addRoomToDB,
   getRooms,
+  checkRoomAvailabilityByKey
 };
