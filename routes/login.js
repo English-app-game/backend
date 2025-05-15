@@ -1,6 +1,7 @@
 import express from "express";
 import bcrypt from "bcrypt";
 import { UserModel } from "../models/User.js";
+import { createToken } from "../utils/jwt.js";
 
 const router = express.Router();
 
@@ -19,8 +20,17 @@ router.post("/api/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid password" });
     }
 
+    const token = createToken({
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        avatarImg: user.avatarImg,
+        isGuest: false,
+    });
+
     res.json({
       message: "Login successful",
+      token,
       user: {
         id: user._id,
         name: user.name,
