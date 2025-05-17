@@ -1,47 +1,9 @@
 import express from "express";
-import bcrypt from "bcrypt";
-import { UserModel } from "../models/User.js";
-import { createToken } from "../utils/jwt.js";
+import { loginUserController } from "../controllers/authController.js";
 
 const router = express.Router();
 
-router.post("/api/login", async (req, res) => {
-  const { email, password } = req.body;
+router.post("/api/login", loginUserController);
 
-  try {
-    const user = await UserModel.findOne({ email });
-
-    if (!user) {
-      return res.status(401).json({ error: "User not found" });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ error: "Invalid password" });
-    }
-
-    const token = createToken({
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        avatarImg: user.avatarImg,
-        isGuest: false,
-    });
-
-    res.json({
-      message: "Login successful",
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        avatarImg: user.avatarImg,
-      },
-    });
-  } catch (err) {
-    console.error("Login error:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
 
 export default router;
