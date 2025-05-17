@@ -1,10 +1,12 @@
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import { createToken } from "../utils/jwt.js";
+import { GUEST_ROUTE } from "../constants/apiRoutes.js";
+
 
 const router = express.Router();
 
-router.post("/api/guest", (req, res) => {
+router.post(GUEST_ROUTE, (req, res) => {
   const { name, avatarImg } = req.body;
 
   if (!name || !avatarImg) {
