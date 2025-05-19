@@ -1,6 +1,17 @@
 import bcrypt from "bcrypt";
 import { UserModel } from "../models/User.js";
 import { createToken } from "../utils/jwt.js";
+import { verifyToken } from "../utils/jwt.js";
+
+export function verifyAuthToken(req){
+  const authHeader = req.headers.authorization;
+  if(!authHeader) throw new Error ("No token provided");
+
+  const token= authHeader.split(" ")[1];
+  if(!token) throw new Error("Malformed token");
+
+  return verifyToken(token);
+}
 
 export async function loginUserController(req, res) {
   const { email, password } = req.body;
