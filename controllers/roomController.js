@@ -1,8 +1,8 @@
 import { addRoomToDB as addRoomToDbService } from "../services/rooms/addRoomToDB.js";
 import { validateCreateRoomFields } from "../utils/validateCreateRoomFields.js";
 import {GameRoomModel} from "../models/GameRoom.js";
+import {MAX_PLAYERS} from "../config/consts.js";
 
-const MAX_PLAYERS = 5;
 
 async function addRoomToDB(req, res) {
   try {

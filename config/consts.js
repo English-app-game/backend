@@ -10,3 +10,5 @@ export const MONGO_URI = process.env.MONGO_URI || null;
 export const REGISTER_ROUTE = "/register";
 export const USERS_ROUTE = "/api/users";
 export const ROOMS_ROUTE = "/api/rooms";
+const MAX_PLAYERS = 5;
+
