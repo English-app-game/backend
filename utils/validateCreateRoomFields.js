@@ -1,16 +1,11 @@
 export function validateCreateRoomFields(roomData) {
   const requiredFields = [
-    "key",
-    "level",
-    "maxPlayers",
-    "players",
-    "gameType",
-    "isActive",
-    "admin",
-    "currentStatus",
-    "createdAt",
-    "chat",
-    "amountOfPlayers",
+  "key",
+  "admin",
+  "gameType",
+  "isActive",
+  "currentStatus",
+  "level"
   ];
 
   const missingFields = requiredFields.filter((field) => !(field in roomData));
