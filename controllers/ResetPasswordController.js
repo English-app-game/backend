@@ -1,47 +1,23 @@
-import { UserModel } from "../models/User.js";
-import crypto from "crypto";
-import nodemailer from "nodemailer";
-import { NODEMAILER_PASSWORD,NODEMAILER_EMAIL, PORT } from "../config/consts.js";
+import setNewPassword from "../services/setNewPassword.js";
+import { resetTokens } from "../services/resetPassword.js";
 
-const resetTokens = new Map();
+export const handleResetPassword = async (req, res) => {
+  const { token, newPassword } = req.body;
 
-export default async function sendResetPasswordEmail(req, res) {
-  const { email } = req.body;
+  const tokenData = resetTokens.get(token);
+  if (!tokenData) {
+    return res.status(400).json({ message: "Invalid or expired token" });
+  }
+  console.log("tokenData:", tokenData);
+  console.log("userId:", tokenData.userId);
 
   try {
-    const user = await UserModel.findOne({ email });
-
-    if (!user) {
-      return res.status(404).json({ message: "Email doesn't exist in the system." });
-    }
-
-    const token = crypto.randomBytes(32).toString("hex");
-    resetTokens.set(token, { userId: user._id, createdAt: Date.now() });
-    const resetLink = `http://localhost:3000/login/resetPassword?token=${token}`;
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: NODEMAILER_EMAIL, 
-        pass: NODEMAILER_PASSWORD, 
-      },
-    });
-
-    await transporter.sendMail({
-      from: `"Reset Password" <${NODEMAILER_EMAIL}>`,
-      to: email,
-      subject: "Reset Your Password",
-      html: `
-        <p>Hello ${user.name},</p>
-        <p>Click the link below to reset your password:</p>
-        <a href="${resetLink}">${resetLink}</a>
-      `
-    });
-
-    return res.status(200).json({ message: "Reset link sent. Please check your Email" });
+    await setNewPassword(tokenData.userId, newPassword);
+    resetTokens.delete(token);
+    res.json({ message: "Password updated successfully" });
+    console.log("updated succesfully");
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Failed to update password" });
   }
-}
-
-export { resetTokens };
+};
