@@ -17,6 +17,11 @@ export default async function sendResetPasswordEmail(req, res) {
 
     const token = crypto.randomBytes(32).toString("hex");
     resetTokens.set(token, { userId: user._id, createdAt: Date.now() });
+
+    setTimeout(() => {
+      resetTokens.delete(token);
+    }, 1000*60*10); 
+
     const resetLink = `${CLIENT_URL}/login/setNewPassword?token=${token}`;
     const transporter = nodemailer.createTransport({
       service: "gmail",

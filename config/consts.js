@@ -14,5 +14,6 @@ export const USERS_ROUTE = "/api/users";
 export const ROOMS_ROUTE = "/api/rooms";
 export const NODEMAILER_EMAIL = process.env.EMAIL;
 export const NODEMAILER_PASSWORD = process.env.EMAIL_PASSWORD;
-const MAX_PLAYERS = 5;
+export const MAX_PLAYERS = 5;
+export const SALT_ROUNDS= 10;
 
