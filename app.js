@@ -6,6 +6,7 @@ import { USERS_ROUTE } from "./config/consts.js";
 import { router as roomsRouter } from "./routes/rooms/router.js";
 import loginRoute from "./routes/login.js";
 import guestRout from "./routes/guest.js"
+import verifyTokenRoute from "./routes/verifyToken.js";
 
 export const initApp = () => {
   const app = express();
@@ -22,9 +23,8 @@ export const initApp = () => {
   app.use(ROOMS_ROUTE, roomsRouter);
   app.use(loginRoute);
   app.use(guestRout);
+  app.use(verifyTokenRoute);
 
-  app.use(USERS_ROUTE, userRouter);
-  app.use(ROOMS_ROUTE, roomsRouter);
 
   return app;
 };
