@@ -22,8 +22,8 @@ const gameRoomSchema = new mongoose.Schema({
     immutable: true
   },
   gameType: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: TABLE_NAMES.GAME_TYPE,
+    type: Number,
+    enum:[1,2,3],
     required: true
   },
   key: { type: String },
