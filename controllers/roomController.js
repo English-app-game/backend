@@ -1,6 +1,7 @@
 import { addRoomToDB as addRoomToDbService } from "../services/rooms/addRoomToDB.js";
 import { validateCreateRoomFields } from "../utils/validateCreateRoomFields.js";
 import {GameRoomModel} from "../models/GameRoom.js";
+import { UserModel } from "../models/User.js";
 import {MAX_PLAYERS} from "../config/consts.js";
 
 
@@ -72,9 +73,33 @@ async function checkRoomAvailabilityByKey(req, res) {
   }
 }
 
+async function getRoomWithPlayers(req, res) {
+  try {
+    const { key } = req.params;
+    if (!key) {
+      return res.status(400).json({ message: "Room key is required" });
+    }
+
+    const room = await GameRoomModel.findOne({ key }).populate("players admin", "name avatarImg");
+
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    return res.json({
+      players: room.players,
+      admin: room.admin,
+      key: room.key
+    });
+  } catch (err) {
+    console.error("Error in getRoomWithPlayers:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
 
 export const roomController = {
   addRoomToDB,
   getRooms,
-  checkRoomAvailabilityByKey
+  checkRoomAvailabilityByKey,
+  getRoomWithPlayers
 };
