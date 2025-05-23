@@ -5,7 +5,6 @@ export function validateCreateRoomFields(roomData) {
   "gameType",
   "isActive",
   "currentStatus",
-  "level"
   ];
 
   const missingFields = requiredFields.filter((field) => !(field in roomData));

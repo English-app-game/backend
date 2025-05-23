@@ -46,10 +46,6 @@ const gameRoomSchema = new mongoose.Schema({
     enum: Object.values(GAME_ROOM_STATUS),
     required: true
   },
-  level: {
-    type: String,
-    required: true
-  },
   finishedAt: { type: Date }
 }, { timestamps: true });
 
