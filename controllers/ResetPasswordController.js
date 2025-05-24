@@ -15,6 +15,10 @@ export const handleResetPassword = async (req, res) => {
     res.json({ message: "Password updated successfully" });
   } catch (err) {
     console.error(err);
-    res.status(404).json({ message: "Failed to update password" });
+    if(err.message === "User not found")
+    {
+      return res.status(404).json({ message: "User not found" })
+    }
+    res.status(500).json({ message: "Server error: Failed to update password" });
   }
 };
