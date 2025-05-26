@@ -18,6 +18,7 @@ export async function addRoomToDB(roomData) {
 
   try {
     const newRoom = await GameRoomModel.create(roomToCreate);
+    console.log("✅ Room created in DB:", newRoom);
     return newRoom;
   } catch (err) {
     console.error("❌ Failed to add room to DB:", err);
