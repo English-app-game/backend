@@ -16,4 +16,5 @@ export const NODEMAILER_EMAIL = process.env.EMAIL;
 export const NODEMAILER_PASSWORD = process.env.EMAIL_PASSWORD;
 export const MAX_PLAYERS = 5;
 export const SALT_ROUNDS= 10;
+export const GAMETYPE_ROUTE ="/api/game-types";
 
