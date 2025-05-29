@@ -1,5 +1,6 @@
 import {UserModel} from "../models/User.js";
 import bcrypt from "bcrypt"
+import {SALT_ROUNDS} from "../config/consts.js";
 
 const register = async (user) => {
     const existingUser = await UserModel.findOne({
@@ -15,7 +16,7 @@ const register = async (user) => {
         }
     }
 
-    const hashedPassword = await bcrypt.hash(user.password,10);
+    const hashedPassword = await bcrypt.hash(user.password,SALT_ROUNDS);
     user.password = hashedPassword;
 
     const newUser = new UserModel(user);

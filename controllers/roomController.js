@@ -3,6 +3,8 @@ import { validateCreateRoomFields } from "../utils/validateCreateRoomFields.js";
 import {GameRoomModel} from "../models/GameRoom.js";
 import { UserModel } from "../models/User.js";
 import {MAX_PLAYERS} from "../config/consts.js";
+import mongoose from "mongoose";
+
 
 
 async function addRoomToDB(req, res) {
@@ -21,6 +23,15 @@ async function addRoomToDB(req, res) {
         error: `Missing required fields: ${missingFields.join(", ")}`,
       });
     }
+
+        if (!roomData.gameType) {
+      return res.status(400).json({ error: "Missing required field: gameType" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(roomData.gameType)) {
+      return res.status(400).json({ error: "Invalid gameType ID" });
+    }
+
 
     const newRoom = await addRoomToDbService(roomData);
 
