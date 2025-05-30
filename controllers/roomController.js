@@ -99,7 +99,7 @@ async function getRoomWithPlayers(req, res) {
 
     const { players, admin } = room;
 
-    return res.json({ players, admin, key });
+    return res.json({...room, key });
   } catch (err) {
     console.error("Error in getRoomWithPlayers:", err);
     return res.status(500).json({ message: "Server error" });
