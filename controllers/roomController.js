@@ -7,7 +7,6 @@ import mongoose from "mongoose";
 
 async function addRoomToDB(req, res) {
   try {
-    console.log(req.body);
     const roomData = req.body;
     if (!roomData) {
       return res.status(400).json({
@@ -101,10 +100,62 @@ async function getRoomWithPlayers(req, res) {
     return res.status(500).json({ message: "Server error" });
   }
 }
+async function getRoomById(req, res) {
+  try {
+    const { id: key } = req.params;
+
+    const room = await GameRoomModel.findOne({ key });
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    return res.status(200).json(room);
+  } catch (err) {
+    console.error("❌ Error in getRoomById controller:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
+async function removePlayerFromRoom(req, res) {
+  try {
+    const { roomKey, userId } = req.body;
+
+    if (!roomKey || !userId) {
+      return res.status(400).json({ message: "roomKey and userId are required" });
+    }
+
+    const room = await GameRoomModel.findOne({ key: roomKey });
+
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    room.players = room.players.filter((playerId) => playerId.toString() !== userId);
+    room.amountOfPlayers = room.players.length;
+
+    if (room.players.length === 0) {
+      await GameRoomModel.deleteOne({ key: roomKey });
+      return res.status(200).json({
+        message: "Player removed and room deleted (no players left)",
+      });
+    }
+
+    await room.save();
+
+    return res.status(200).json({
+      message: "Player removed from room",
+      room,
+    });
+  } catch (err) {
+    console.error("❌ Error in removePlayerFromRoom controller:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
 
 export const roomController = {
   addRoomToDB,
   getRooms,
   checkRoomAvailabilityByKey,
   getRoomWithPlayers,
+  getRoomById,
+  removePlayerFromRoom,
 };
