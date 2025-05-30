@@ -1,8 +1,6 @@
 import { addRoomToDB as addRoomToDbService } from "../services/rooms/addRoomToDB.js";
 import { validateCreateRoomFields } from "../utils/validateCreateRoomFields.js";
 import { GameRoomModel } from "../models/GameRoom.js";
-import { UserModel } from "../models/User.js";
-import { MAX_PLAYERS } from "../config/consts.js";
 import mongoose from "mongoose";
 
 async function addRoomToDB(req, res) {
@@ -44,7 +42,7 @@ async function addRoomToDB(req, res) {
 async function getRooms(req, res) {
   try {
     const rooms = await GameRoomModel.find();
-    console.log("🔥 Rooms fetched from DB:", rooms);
+    // console.log("🔥 Rooms fetched from DB:", rooms);
     res.json(rooms);
   } catch (err) {
     console.error("❌ Error in /api/rooms:", err);
@@ -151,6 +149,42 @@ async function removePlayerFromRoom(req, res) {
   }
 }
 
+async function addPlayerToRoom(req, res) {
+  try {
+    const { roomKey, userId } = req.body;
+    if (!roomKey || !userId) {
+      return res.status(400).json({ message: "roomKey and userId are required" });
+    }
+
+    const room = await GameRoomModel.findOne({ key: roomKey });
+
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    if (room.amountOfPlayers >= room.maxPlayers) {
+      return res.status(400).json({ message: "Room is full" });
+    }
+
+    if (room.players.some((playerId) => playerId.toString() === userId)) {
+      return res.status(200).json({ message: "Player already in the room", room });
+    }
+
+    room.players.push(userId);
+    room.amountOfPlayers = room.players.length;
+
+    await room.save();
+
+    return res.status(200).json({
+      message: "Player added to room",
+      room,
+    });
+  } catch (err) {
+    console.error("❌ Error in addPlayerToRoom controller:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
+
 export const roomController = {
   addRoomToDB,
   getRooms,
@@ -158,4 +192,5 @@ export const roomController = {
   getRoomWithPlayers,
   getRoomById,
   removePlayerFromRoom,
+  addPlayerToRoom,
 };
