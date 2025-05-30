@@ -1,11 +1,9 @@
 import { addRoomToDB as addRoomToDbService } from "../services/rooms/addRoomToDB.js";
 import { validateCreateRoomFields } from "../utils/validateCreateRoomFields.js";
-import {GameRoomModel} from "../models/GameRoom.js";
+import { GameRoomModel } from "../models/GameRoom.js";
 import { UserModel } from "../models/User.js";
-import {MAX_PLAYERS} from "../config/consts.js";
+import { MAX_PLAYERS } from "../config/consts.js";
 import mongoose from "mongoose";
-
-
 
 async function addRoomToDB(req, res) {
   try {
@@ -24,14 +22,13 @@ async function addRoomToDB(req, res) {
       });
     }
 
-        if (!roomData.gameType) {
+    if (!roomData.gameType) {
       return res.status(400).json({ error: "Missing required field: gameType" });
     }
 
     if (!mongoose.Types.ObjectId.isValid(roomData.gameType)) {
       return res.status(400).json({ error: "Invalid gameType ID" });
     }
-
 
     const newRoom = await addRoomToDbService(roomData);
 
@@ -45,9 +42,9 @@ async function addRoomToDB(req, res) {
   }
 }
 
-async function getRooms(req,res){
+async function getRooms(req, res) {
   try {
-   const rooms = await GameRoomModel.find();
+    const rooms = await GameRoomModel.find();
     console.log("🔥 Rooms fetched from DB:", rooms);
     res.json(rooms);
   } catch (err) {
@@ -67,7 +64,6 @@ async function checkRoomAvailabilityByKey(req, res) {
 
     const room = await GameRoomModel.findOne({ key });
     console.log("🔎 Room found:", room);
-
 
     if (!room) {
       return res.status(404).json({ message: "Room not found" });
@@ -99,7 +95,7 @@ async function getRoomWithPlayers(req, res) {
 
     const { players, admin } = room;
 
-    return res.json({...room, key });
+    return res.json({ ...room, players, admin, key });
   } catch (err) {
     console.error("Error in getRoomWithPlayers:", err);
     return res.status(500).json({ message: "Server error" });
@@ -110,5 +106,5 @@ export const roomController = {
   addRoomToDB,
   getRooms,
   checkRoomAvailabilityByKey,
-  getRoomWithPlayers
+  getRoomWithPlayers,
 };
