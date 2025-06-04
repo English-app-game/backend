@@ -24,8 +24,6 @@ export const initApp = () => {
   app.use(loginRoute);
   app.use(guestRout);
   app.use(GAMETYPE_ROUTE,gameTypeRoutes);
-  app.use(USERS_ROUTE, userRouter);
-  app.use(ROOMS_ROUTE, roomsRouter);
   app.use(STATISTICS_ROUTE, statisticsRouter);
 
   return app;

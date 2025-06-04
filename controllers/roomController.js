@@ -6,6 +6,7 @@ import mongoose from "mongoose";
 async function addRoomToDB(req, res) {
   try {
     const roomData = req.body;
+    roomData.key = crypto.randomUUID();
     if (!roomData) {
       return res.status(400).json({
         error: `No Room Data passed!`,
@@ -42,7 +43,6 @@ async function addRoomToDB(req, res) {
 async function getRooms(req, res) {
   try {
     const rooms = await GameRoomModel.find();
-    // console.log("🔥 Rooms fetched from DB:", rooms);
     res.json(rooms);
   } catch (err) {
     console.error("❌ Error in /api/rooms:", err);

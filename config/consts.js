@@ -12,10 +12,12 @@ export const RESET_PASSWORD_ROUTE = "/login/resetPassword";
 export const SET_NEW_PASSWORD = "/resetPassword";
 export const USERS_ROUTE = "/api/users";
 export const ROOMS_ROUTE = "/api/rooms";
-export const STATISTICS_ROUTE = "/api/statistics"
+export const STATISTICS_ROUTE = "/api/statistics";
 export const NODEMAILER_EMAIL = process.env.EMAIL;
 export const NODEMAILER_PASSWORD = process.env.EMAIL_PASSWORD;
 export const MAX_PLAYERS = 5;
-export const SALT_ROUNDS= 10;
-export const GAMETYPE_ROUTE ="/api/game-types";
-
+export const SALT_ROUNDS = 10;
+export const GAMETYPE_ROUTE = "/api/game-types";
+export const GET_ROOM_BY_ID_ROUTE = `/:id`;
+export const JOIN_ROOM_ROUTE = `/players/join`;
+export const REMOVE_PLAYER_FROM_ROOM_ROUTE = `/players/remove`;
