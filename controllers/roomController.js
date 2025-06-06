@@ -70,7 +70,7 @@ async function checkRoomAvailabilityByKey(req, res) {
       return res.status(400).json({ message: "Room is full" });
     }
 
-    return res.json({ message: "Room is available", roomId: room.key });
+    return res.json({ message: "Room is available", roomKey: room.key });
   } catch (err) {
     console.error("❌ Error in checkRoomAvailability:", err);
     return res.status(500).json({ message: "Server error" });
@@ -216,5 +216,5 @@ export const roomController = {
   getRoomById,
   removePlayerFromRoom,
   addPlayerToRoom,
-  startGame
+  startGame,
 };
