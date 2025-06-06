@@ -184,6 +184,29 @@ async function addPlayerToRoom(req, res) {
     return res.status(500).json({ message: "Server error" });
   }
 }
+async function startGame(req, res) {
+  try {
+    const { id: roomKey } = req.params;
+
+    const room = await GameRoomModel.findOne({ key: roomKey });
+
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    if (room.currentStatus !== "waiting") {
+      return res.status(400).json({ message: "Game already started or finished" });
+    }
+
+    room.currentStatus = "playing";
+    await room.save();
+
+    return res.status(200).json(room);
+  } catch (err) {
+    console.error("❌ Error starting game:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+}
 
 export const roomController = {
   addRoomToDB,
@@ -193,4 +216,5 @@ export const roomController = {
   getRoomById,
   removePlayerFromRoom,
   addPlayerToRoom,
+  startGame
 };
