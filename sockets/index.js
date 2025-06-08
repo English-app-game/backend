@@ -13,13 +13,12 @@ export default function setupSocketHandlers(io) {
     return {
       roomKey: "",
       users: new Map(),
-      // scores
-      // hold user state
-      // game state : {words: [word: {heb: string, eng:string}, lock:boolean, disabled: boolean}]}
-      // toast user to choose heb word first. 
-      // update user score at end of game
+      host: null, // {socketId: string, user: { id: string, name: string }},
+      scoreboard: [{}], // [{userId: string, name:string, , score: number }].sort(from highest to lowest score)
+      words: [], // { id:string, heb:string, eng:string, lock:boolean, disabled:boolean, heldBy: string(user.id) | null }
     };
   }
+  // toast user to choose heb word first.
 
   // ── Adapter events keep rooms Map in sync ─────────────────────
   adapter.on("create-room", (room) => {
@@ -68,9 +67,9 @@ export default function setupSocketHandlers(io) {
       const state = rooms.get(roomKey) || createRoomState();
       state.roomKey = roomKey;
       if (state.users.size === 0) {
-        state.users.set(socket.id, user);
+        state.users.set(user.id, { socketId: socket.id, ...user });
         socket.emit("set-room-host");
-      } else state.users.set(socket.id, user);
+      } else state.users.set(user.id, { socketId: socket.id, ...user });
 
       rooms.set(roomKey, state);
       // join the Socket.IO room (Adapter events handle rooms Map)
