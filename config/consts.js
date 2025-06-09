@@ -21,3 +21,5 @@ export const GAMETYPE_ROUTE = "/api/game-types";
 export const GET_ROOM_BY_ID_ROUTE = `/:id`;
 export const JOIN_ROOM_ROUTE = `/players/join`;
 export const REMOVE_PLAYER_FROM_ROOM_ROUTE = `/players/remove`;
+export const MEMORYGAME_ROUTE = "/api/memorygame";
+
