@@ -1,5 +1,5 @@
 import express from 'express';
-import { getTopScores,getTopGames, getTopPlayers } from '../services/statistics.js';
+import { getTopScores,getTopGames, getTopPlayers } from '../controllers/statistics.js';
 
 const router = express.Router();
 
