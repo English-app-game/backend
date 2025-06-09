@@ -3,6 +3,7 @@ import { initApp } from "./app.js";
 import { connectToDB } from "./config/db.js";
 import { Server } from "socket.io";
 import { CLIENT_URL, PORT } from "./config/consts.js";
+import setupSocketHandlers from "./sockets/index.js";
 
 const startServer = async () => {
   const app = initApp();
@@ -18,6 +19,7 @@ const startServer = async () => {
 
   await connectToDB();
 
+  setupSocketHandlers(io)
 
   server.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
