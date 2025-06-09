@@ -4,6 +4,7 @@ import {
   GET_ROOM_BY_ID_ROUTE,
   JOIN_ROOM_ROUTE,
   REMOVE_PLAYER_FROM_ROOM_ROUTE,
+  START_GAME_ROUTE,
 } from "../../config/consts.js";
 
 const router = express.Router();
@@ -17,5 +18,6 @@ router.route(ROOM_ROUTE_PLAYERS_BY_KEY).get(roomController.getRoomWithPlayers);
 router.route(GET_ROOM_BY_ID_ROUTE).get(roomController.getRoomById);
 router.route(REMOVE_PLAYER_FROM_ROOM_ROUTE).delete(roomController.removePlayerFromRoom);
 router.route(JOIN_ROOM_ROUTE).post(roomController.addPlayerToRoom);
+router.route(START_GAME_ROUTE).patch(roomController.startGame);
 
 export { router, ROOM_ROUTE_BY_KEY };
