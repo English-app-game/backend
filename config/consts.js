@@ -21,4 +21,8 @@ export const GAMETYPE_ROUTE = "/api/game-types";
 export const GET_ROOM_BY_ID_ROUTE = `/:id`;
 export const JOIN_ROOM_ROUTE = `/players/join`;
 export const REMOVE_PLAYER_FROM_ROOM_ROUTE = `/players/remove`;
+export const SCORE_ROUTE= "/api/score";
+export const GET_LAST_SCORE_ROUTE = "/last/:playerId";
+export const SAVE_SCORE_ROUTE = "/save";
 export const START_GAME_ROUTE = `/:id/start`;
+
