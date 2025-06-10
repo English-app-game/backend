@@ -184,15 +184,27 @@ async function addPlayerToRoom(req, res) {
     return res.status(500).json({ message: "Server error" });
   }
 }
+
 async function startGame(req, res) {
   try {
     const { id: roomKey } = req.params;
+    const { userId } = req.body;
+    console.log("Received userId:", userId);
 
     const room = await GameRoomModel.findOne({ key: roomKey });
 
     if (!room) {
       return res.status(404).json({ message: "Room not found" });
     }
+
+    console.log("Room admin ID:", room.admin.toString());
+
+      if (room.admin.toString() !== userId) {
+      return res.status(403).json({ message: "Only the host can start the game" });
+    }
+
+    console.log("Comparison:", room.admin.toString(), "===", userId);
+
 
     if (room.currentStatus !== "waiting") {
       return res.status(400).json({ message: "Game already started or finished" });
