@@ -28,6 +28,11 @@ async function addRoomToDB(req, res) {
       return res.status(400).json({ error: "Invalid gameType ID" });
     }
 
+    // Validate that only registered users can create rooms
+    if (!mongoose.Types.ObjectId.isValid(roomData.admin)) {
+      return res.status(400).json({ error: "Only registered users can create rooms" });
+    }
+
     const newRoom = await addRoomToDbService(roomData);
 
     return res.status(201).json({
@@ -85,19 +90,24 @@ async function getRoomWithPlayers(req, res) {
     }
 
     const room = await GameRoomModel.findOne({ key }).populate("players admin", "name avatarImg");
-
     if (!room) {
       return res.status(404).json({ message: "Room not found" });
     }
 
-    const { players, admin } = room;
-
-    return res.json({ ...room, players, admin, key });
+    const { players, admin, guestPlayers } = room;
+    return res.json({
+      ...room.toObject(),
+      players: room.players,
+      admin: room.admin,
+      guests: guestPlayers,
+      key,
+    });
   } catch (err) {
     console.error("Error in getRoomWithPlayers:", err);
     return res.status(500).json({ message: "Server error" });
   }
 }
+
 async function getRoomById(req, res) {
   try {
     const { id: key } = req.params;
@@ -113,36 +123,34 @@ async function getRoomById(req, res) {
     return res.status(500).json({ message: "Server error" });
   }
 }
+
 async function removePlayerFromRoom(req, res) {
   try {
     const { roomKey, userId } = req.body;
-
     if (!roomKey || !userId) {
       return res.status(400).json({ message: "roomKey and userId are required" });
     }
 
     const room = await GameRoomModel.findOne({ key: roomKey });
+    if (!room) return res.status(404).json({ message: "Room not found" });
 
-    if (!room) {
-      return res.status(404).json({ message: "Room not found" });
+    const isObjectId = mongoose.Types.ObjectId.isValid(userId);
+
+    if (isObjectId) {
+      room.players = room.players.filter((playerId) => playerId.toString() !== userId);
+    } else {
+      room.guestPlayers = room.guestPlayers.filter((g) => g.id !== userId);
     }
 
-    room.players = room.players.filter((playerId) => playerId.toString() !== userId);
-    room.amountOfPlayers = room.players.length;
+    room.amountOfPlayers = room.players.length + room.guestPlayers.length;
 
-    if (room.players.length === 0) {
+    if (room.amountOfPlayers === 0) {
       await GameRoomModel.deleteOne({ key: roomKey });
-      return res.status(200).json({
-        message: "Player removed and room deleted (no players left)",
-      });
+      return res.status(200).json({ message: "Player removed and room deleted (no players left)" });
     }
 
     await room.save();
-
-    return res.status(200).json({
-      message: "Player removed from room",
-      room,
-    });
+    return res.status(200).json({ message: "Player removed from room", room });
   } catch (err) {
     console.error("❌ Error in removePlayerFromRoom controller:", err);
     return res.status(500).json({ message: "Server error" });
@@ -151,34 +159,43 @@ async function removePlayerFromRoom(req, res) {
 
 async function addPlayerToRoom(req, res) {
   try {
-    const { roomKey, userId } = req.body;
+    const { roomKey, userId, guestData } = req.body;
+
     if (!roomKey || !userId) {
       return res.status(400).json({ message: "roomKey and userId are required" });
     }
 
     const room = await GameRoomModel.findOne({ key: roomKey });
+    if (!room) return res.status(404).json({ message: "Room not found" });
 
-    if (!room) {
-      return res.status(404).json({ message: "Room not found" });
-    }
+    const isObjectId = mongoose.Types.ObjectId.isValid(userId);
 
-    if (room.amountOfPlayers >= room.maxPlayers) {
-      return res.status(400).json({ message: "Room is full" });
-    }
+    const isAlreadyInRoom = isObjectId
+      ? room.players.some((p) => p.toString() === userId)
+      : room.guestPlayers.some((g) => g.id === userId);
 
-    if (room.players.some((playerId) => playerId.toString() === userId)) {
+    if (isAlreadyInRoom) {
       return res.status(200).json({ message: "Player already in the room", room });
     }
 
-    room.players.push(userId);
-    room.amountOfPlayers = room.players.length;
+    const totalPlayers = room.players.length + room.guestPlayers.length;
+    if (totalPlayers >= room.maxPlayers) {
+      return res.status(400).json({ message: "Room is full" });
+    }
 
+    if (isObjectId) {
+      room.players.push(userId);
+    } else {
+      if (!guestData || !guestData.id || !guestData.name || !guestData.avatarImg) {
+        return res.status(400).json({ message: "Missing guest data" });
+      }
+      room.guestPlayers.push(guestData);
+    }
+
+    room.amountOfPlayers = room.players.length + room.guestPlayers.length;
     await room.save();
 
-    return res.status(200).json({
-      message: "Player added to room",
-      room,
-    });
+    return res.status(200).json({ message: "Player added to room", room });
   } catch (err) {
     console.error("❌ Error in addPlayerToRoom controller:", err);
     return res.status(500).json({ message: "Server error" });
@@ -199,7 +216,14 @@ async function startGame(req, res) {
 
     console.log("Room admin ID:", room.admin.toString());
 
-      if (room.admin.toString() !== userId) {
+    // First check if user is a guest
+    const isGuest = !mongoose.Types.ObjectId.isValid(userId);
+    if (isGuest) {
+      return res.status(403).json({ message: "Guests cannot start games" });
+    }
+
+    // Then do admin comparison
+    if (room.admin.toString() !== userId) {
       return res.status(403).json({ message: "Only the host can start the game" });
     }
 
