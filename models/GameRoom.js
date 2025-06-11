@@ -11,6 +11,13 @@ const gameRoomSchema = new mongoose.Schema({
       ref: TABLE_NAMES.USER
     }
   ],
+  guestPlayers: [
+    {
+      id: String,
+      name: String,
+      avatarImg: String
+    }
+  ],
   amountOfPlayers: {
     type: Number,
     required: true,

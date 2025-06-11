@@ -13,14 +13,16 @@ router.post(GUEST_ROUTE, (req, res) => {
     return res.status(400).json({ error: "Name and avatar are required" });
   }
 
+  const guestId = uuidv4();
+  
   const token = createToken({
-    id: uuidv4(),
+    id: guestId,
     name,
     avatarImg,
     isGuest: true,
   }, "1h");
 
-  res.json({ token, user: { name, avatarImg, isGuest: true } });
+  res.json({ token, user: { id: guestId, name, avatarImg, isGuest: true } });
 });
 
 export default router;
