@@ -1,8 +1,18 @@
+import { WAITING_ROOM_EVENTS } from './consts.js';
+import { GAME_ROOM_STATUS } from '../models/statuses.js';
+import { GameRoomModel } from '../models/GameRoom.js';
+
 export function setupWaitingRoomSocketHandlers(io) {
   const waitingRooms = new Map();
 
-  function isWaitingRoom(room) {
-    return room.startsWith('waiting-') && !io.sockets.sockets.has(room);
+  async function isWaitingRoom(roomKey) {
+    try {
+      const room = await GameRoomModel.findOne({ key: roomKey });
+      return room && room.currentStatus === GAME_ROOM_STATUS.WAITING;
+    } catch (error) {
+      console.error('Error checking room status:', error);
+      return false;
+    }
   }
 
   function createWaitingRoomState() {
@@ -11,10 +21,10 @@ export function setupWaitingRoomSocketHandlers(io) {
     };
   }
 
-  function getWaitingRoomKey(socket) {
-    for (const room of socket.rooms) {
-      if (room.startsWith('waiting-')) {
-        return room;
+  async function getWaitingRoomKey(socket) {
+    for (const roomKey of socket.rooms) {
+      if (await isWaitingRoom(roomKey)) {
+        return roomKey;
       }
     }
     return null;
@@ -31,19 +41,21 @@ export function setupWaitingRoomSocketHandlers(io) {
       isGuest: player.isGuest || false
     }));
 
-    io.in(roomKey).emit('waiting-room-players-updated', {
+    io.in(roomKey).emit(WAITING_ROOM_EVENTS.PLAYERS_UPDATED, {
       players: playersList,
       count: playersList.length
     });
-
   }
 
   io.on("connection", (socket) => {
     
-    socket.on("join-waiting-room", ({ roomKey, user }) => {
-      const waitingRoomKey = `waiting-${roomKey}`;
+    socket.on(WAITING_ROOM_EVENTS.JOIN, async ({ roomKey, user }) => {
+      if (!(await isWaitingRoom(roomKey))) {
+        console.warn(`Room ${roomKey} is not in waiting status`);
+        return;
+      }
       
-      const state = waitingRooms.get(waitingRoomKey) || createWaitingRoomState();
+      const state = waitingRooms.get(roomKey) || createWaitingRoomState();
       
       state.players.set(user.id, {
         socketId: socket.id,
@@ -53,43 +65,48 @@ export function setupWaitingRoomSocketHandlers(io) {
         isGuest: user.isGuest || false
       });
 
-      waitingRooms.set(waitingRoomKey, state);
+      waitingRooms.set(roomKey, state);
       
-      socket.join(waitingRoomKey);
+      socket.join(roomKey);
             
-      broadcastPlayerList(waitingRoomKey);
+      broadcastPlayerList(roomKey);
     });
 
-    socket.on("leave-waiting-room", ({ roomKey, userId }) => {
-      const waitingRoomKey = `waiting-${roomKey}`;
-      const state = waitingRooms.get(waitingRoomKey);
+    socket.on(WAITING_ROOM_EVENTS.LEAVE, async ({ roomKey, userId }) => {
+      if (!(await isWaitingRoom(roomKey))) {
+        return;
+      }
+
+      const state = waitingRooms.get(roomKey);
       
       if (state && state.players.has(userId)) {
         state.players.delete(userId);
         
         if (state.players.size === 0) {
-          waitingRooms.delete(waitingRoomKey);
+          waitingRooms.delete(roomKey);
         } else {
-          broadcastPlayerList(waitingRoomKey);
+          broadcastPlayerList(roomKey);
         }
       }
       
-      socket.leave(waitingRoomKey);
-      
+      socket.leave(roomKey);
     });
 
-    socket.on("disconnecting", () => {
-      
-      for (const [waitingRoomKey, state] of waitingRooms.entries()) {
+    socket.on("disconnecting", async () => {
+      for (const [roomKey, state] of waitingRooms.entries()) {
+        if (!(await isWaitingRoom(roomKey))) {
+          continue;
+        }
+
         if (state && state.players) {
           for (const [userId, userData] of state.players.entries()) {
             if (userData.socketId === socket.id) {
               state.players.delete(userId);
               
               if (state.players.size === 0) {
-                waitingRooms.delete(waitingRoomKey);
+                waitingRooms.delete(roomKey);
               } else {
-                broadcastPlayerList(waitingRoomKey);
+                broadcastPlayerList(roomKey);
               }
               break;
             }
@@ -98,19 +115,21 @@ export function setupWaitingRoomSocketHandlers(io) {
       }
     });
 
-    socket.on("remove-from-waiting-room", ({ roomKey, userId }) => {
-      const waitingRoomKey = `waiting-${roomKey}`;
-      const state = waitingRooms.get(waitingRoomKey);
+    socket.on(WAITING_ROOM_EVENTS.REMOVE, async ({ roomKey, userId }) => {
+      if (!(await isWaitingRoom(roomKey))) {
+        return;
+      }
+
+      const state = waitingRooms.get(roomKey);
       
       if (state && state.players.has(userId)) {
         const userData = state.players.get(userId);
         state.players.delete(userId);
         
-        
         if (state.players.size === 0) {
-          waitingRooms.delete(waitingRoomKey);
+          waitingRooms.delete(roomKey);
         } else {
-          broadcastPlayerList(waitingRoomKey);
+          broadcastPlayerList(roomKey);
         }
       }
     });
