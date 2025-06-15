@@ -1,4 +1,4 @@
-import { generateWords, TRANSLATION_GAME_EVENTS } from "./consts.js";
+import { generateWords, TRANSLATION_GAME_EVENTS, TRANSLATION_GAME_CONFIG } from "./consts.js";
 import { generateRandomColor } from "../services/translationGameHelpers.js";
 
 export default function setupSocketHandlers(io) {
@@ -46,7 +46,20 @@ export default function setupSocketHandlers(io) {
     const state = rooms.get(room);
     if (!state) return;
 
-    state.users.delete(socketId);
+    let userIdToRemove = null;
+    for (const [userId, user] of state.users) {
+      if (user.socketId === socketId) {
+        userIdToRemove = userId;
+        break;
+      }
+    }
+
+    if (userIdToRemove) {
+      state.users.delete(userIdToRemove);
+      console.log(`❌ Socket ${socketId} (user ${userIdToRemove}) left ${room}`);
+    } else {
+      console.warn(`⚠️ Could not match socketId ${socketId} to any user`);
+    }
 
     if (state.users.size === 0) {
       rooms.delete(room);
@@ -80,7 +93,10 @@ export default function setupSocketHandlers(io) {
       if (isNewRoom) {
         state.host = { socketId: socket.id, ...user };
 
-        state.words = generateWords(TRANSLATION_GAME_EVENTS.WORDS_TO_GENERATE);
+        const [hebWords, engWords] = generateWords(TRANSLATION_GAME_CONFIG.WORDS_TO_GENERATE);
+        state.words = [...hebWords, ...engWords];
+        state.hebWords = [...hebWords];
+        state.enWords = [...engWords];
       }
 
       state.users.set(user.id, {
@@ -90,8 +106,8 @@ export default function setupSocketHandlers(io) {
         color,
       });
 
-      socket.join(roomKey);
       rooms.set(roomKey, state);
+      socket.join(roomKey);
 
       emitRoomState(roomKey, state);
     });
@@ -116,6 +132,72 @@ export default function setupSocketHandlers(io) {
       });
     });
 
+    socket.on("lock-word", ({ roomKey, wordId, userId }) => {
+      const state = rooms.get(roomKey);
+      if (!state) return;
+
+      const word = state.words.find((w) => w.id === wordId);
+      if (!word) return;
+
+      // If the user already holds this word → unlock it
+      if (word.heldBy === userId) {
+        word.heldBy = null;
+        word.lock = false;
+      } else {
+        // First, release any word currently held by this user
+        for (const w of state.words) {
+          if (w.heldBy === userId) {
+            w.heldBy = null;
+            w.lock = false;
+          }
+        }
+
+        // Then lock the new word
+        word.heldBy = userId;
+        word.lock = true;
+      }
+
+      io.in(roomKey).emit(TRANSLATION_GAME_EVENTS.SET_STATE, {
+        ...state,
+        users: Object.fromEntries(state.users),
+      });
+    });
+
+    socket.on(TRANSLATION_GAME_EVENTS.MATCH_WORD, ({ roomKey, hebrewId, englishId, userId }) => {
+      const state = rooms.get(roomKey);
+      console.log(state);
+      if (!state) return;
+
+      const hebWord = state.hebWords.find((w) => w.id === hebrewId);
+      const engWord = state.enWords.find((w) => w.id === englishId);
+      console.log(hebWord, engWord);
+      if (!hebWord || !engWord) return;
+
+      const isCorrectMatch = hebWord.id === engWord.id;
+      if (isCorrectMatch) {
+        hebWord.disabled = true;
+        engWord.disabled = true;
+        hebWord.heldBy = null;
+        hebWord.lock = false;
+
+        const user = state.users.get(userId);
+        if (user) {
+          user.score += 1;
+        }
+
+        emitRoomState(roomKey, state);
+      } else {
+        // just unlock
+        hebWord.heldBy = null;
+        hebWord.lock = false;
+
+        emitRoomState(roomKey, state);
+      }
+      socket.emit(TRANSLATION_GAME_EVENTS.MATCH_FEEDBACK, {
+        correct: isCorrectMatch,
+      });
+    });
+
     socket.on("disconnecting", () => {
       console.log("⚠️ Disconnecting:", socket.id);
 
@@ -126,7 +208,7 @@ export default function setupSocketHandlers(io) {
 
         const state = rooms.get(roomKey);
         if (state) {
-          io.in(roomKey).emit("set-translation-game-state", {
+          io.in(roomKey).emit(TRANSLATION_GAME_EVENTS.SET_STATE, {
             ...state,
             users: Object.fromEntries(state.users),
           });

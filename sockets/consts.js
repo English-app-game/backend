@@ -6,16 +6,20 @@ export const WAITING_ROOM_EVENTS = {
 };
 
 export const TRANSLATION_GAME_EVENTS = {
-  JOIN: "join-room",
-  LEAVE: "leave-room",
-  SET_STATE: "set-translation-game-state",
-  START: "start-translation-game",
-  END: "end-translation-game",
-  SEND_MESSAGE: "send-message",
-  RECEIVE_MESSAGE: "receive-message",
-  UPDATE_SCORE: "update-score",
-  REFERENCE: "reference",
-  WORDS_TO_GENERATE: 30,
+  JOIN: "translation-game/join",
+  LEAVE: "translation-game/leave",
+  SET_STATE: "translation-game/set-state",
+  START: "translation-game/start",
+  END: "translation-game/end",
+  SEND_MESSAGE: "translation-game/send-message",
+  RECEIVE_MESSAGE: "translation-game/receive-message",
+  UPDATE_SCORE: "translation-game/update-score",
+  MATCH_WORD: "translation-game/match-word",
+  MATCH_FEEDBACK: "translation-game/match-feedback",
+};
+
+export const TRANSLATION_GAME_CONFIG = {
+  WORDS_TO_GENERATE: 37,
 };
 
 // mock testing data -- end
@@ -74,18 +78,30 @@ export const WORD_BANK = [
   { heb: "הר", eng: "mountain" },
 ];
 
+const shuffleArray = (arr) => {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+};
+
 // will later generate data from apis and translations
 export function generateWords(count = 5) {
   const shuffled = [...WORD_BANK].sort(() => 0.5 - Math.random());
   const selected = shuffled.slice(0, count);
 
-  return selected.map(({ heb, eng }) => ({
-    id: uuidv4(),
-    heb: { word: heb, lock: false },
-    eng: { word: eng, lock: false },
-    disabled: false,
-    heldBy: null,
-  }));
+  const hebWords = [];
+  const engWords = [];
+
+  selected.forEach(({ heb, eng }) => {
+    const id = uuidv4();
+    engWords.push({ id, word: eng, disabled: false, heldBy: null, lock: false });
+    hebWords.push({ id, word: heb, disabled: false, heldBy: null, lock: false });
+  });
+
+  return [shuffleArray(hebWords), shuffleArray(engWords)];
 }
 
 // mock testing data -- end
