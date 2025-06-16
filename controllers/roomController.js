@@ -244,6 +244,28 @@ async function startGame(req, res) {
   }
 }
 
+async function getPlayersInRoom(req, res) {
+  try {
+    const { key } = req.params;
+    if (!key) {
+      return res.status(400).json({ message: "Room key is required" });
+    }
+
+    const room = await GameRoomModel.findOne({ key }).populate("players", "name avatarImg");
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    const players = [...room.players];
+    const guests = [...(room.guestPlayers || [])]; 
+
+    return res.json({ players, guests });
+  } catch (err) {
+    console.error("❌ Error in getPlayersInRoom:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
+
 export const roomController = {
   addRoomToDB,
   getRooms,
@@ -253,4 +275,5 @@ export const roomController = {
   removePlayerFromRoom,
   addPlayerToRoom,
   startGame,
+  getPlayersInRoom,
 };

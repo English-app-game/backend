@@ -15,6 +15,7 @@ router.route("/create").post(roomController.addRoomToDB);
 router.route("/").get(roomController.getRooms);
 router.route(ROOM_ROUTE_BY_KEY).get(roomController.checkRoomAvailabilityByKey);
 router.route(ROOM_ROUTE_PLAYERS_BY_KEY).get(roomController.getRoomWithPlayers);
+router.get("/players-in-room/:key", roomController.getPlayersInRoom);
 router.route(GET_ROOM_BY_ID_ROUTE).get(roomController.getRoomById);
 router.route(REMOVE_PLAYER_FROM_ROOM_ROUTE).delete(roomController.removePlayerFromRoom);
 router.route(JOIN_ROOM_ROUTE).post(roomController.addPlayerToRoom);
