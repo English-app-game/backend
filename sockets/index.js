@@ -165,12 +165,10 @@ export default function setupSocketHandlers(io) {
 
     socket.on(TRANSLATION_GAME_EVENTS.MATCH_WORD, ({ roomKey, hebrewId, englishId, userId }) => {
       const state = rooms.get(roomKey);
-      console.log(state);
       if (!state) return;
 
       const hebWord = state.hebWords.find((w) => w.id === hebrewId);
       const engWord = state.enWords.find((w) => w.id === englishId);
-      console.log(hebWord, engWord);
       if (!hebWord || !engWord) return;
 
       const isCorrectMatch = hebWord.id === engWord.id;
@@ -184,15 +182,27 @@ export default function setupSocketHandlers(io) {
         if (user) {
           user.score += 1;
         }
-
-        emitRoomState(roomKey, state);
       } else {
-        // just unlock
         hebWord.heldBy = null;
         hebWord.lock = false;
-
-        emitRoomState(roomKey, state);
       }
+
+      emitRoomState(roomKey, state);
+
+      // 🔚 Check for end game
+      const allHebDisabled = state.hebWords.every((w) => w.disabled);
+      const allEngDisabled = state.enWords.every((w) => w.disabled);
+
+      if (allHebDisabled && allEngDisabled) {
+        io.in(roomKey).emit(TRANSLATION_GAME_EVENTS.END, {
+          message: "🎉 Game over!",
+          finalState: {
+            ...state,
+            users: Object.fromEntries(state.users),
+          },
+        });
+      }
+
       socket.emit(TRANSLATION_GAME_EVENTS.MATCH_FEEDBACK, {
         correct: isCorrectMatch,
       });
