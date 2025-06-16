@@ -10,7 +10,7 @@ export function setupWaitingRoomSocketHandlers(io) {
     if (deletedRoomKeys.has(roomKey)) return;
     deletedRoomKeys.add(roomKey);
 
-    io.in(roomKey).emit("room-closed");
+    io.in(roomKey).emit(WAITING_ROOM_EVENTS.ROOM_CLOSED);
     const sockets = await io.in(roomKey).fetchSockets();
     sockets.forEach((s) => s.leave(roomKey));
     waitingRooms.delete(roomKey);
@@ -26,9 +26,24 @@ export function setupWaitingRoomSocketHandlers(io) {
   async function isWaitingRoom(roomKey) {
     try {
       const room = await GameRoomModel.findOne({ key: roomKey });
-      return room && room.currentStatus === GAME_ROOM_STATUS.WAITING;
+      if (!room) {
+        console.log(`🔍 Room ${roomKey} not found in database`);
+        return false;
+      }
+      
+      console.log(`🔍 Room ${roomKey} found:`, {
+        currentStatus: room.currentStatus,
+        isActive: room.isActive,
+        amountOfPlayers: room.amountOfPlayers,
+        admin: room.admin
+      });
+      
+      const isWaiting = room.currentStatus === GAME_ROOM_STATUS.WAITING;
+      console.log(`🔍 Room ${roomKey} status check: ${room.currentStatus} === ${GAME_ROOM_STATUS.WAITING} = ${isWaiting}`);
+      
+      return isWaiting;
     } catch (error) {
-      console.error("Error checking room status:", error);
+      console.error('Error checking room status:', error);
       return false;
     }
   }
@@ -103,20 +118,21 @@ export function setupWaitingRoomSocketHandlers(io) {
       if (!state) return;
 
       const isHost = state.host?.socketId === socket.id;
+      
+      // Remove the leaving player from players map (both host and non-host)
+      state.players.forEach((u, userId) => {
+        if (u.socketId === socket.id) {
+          state.players.delete(userId);
+        }
+      });
 
       if (isHost) {
-        io.in(roomKey).emit("host-left");
+        io.in(roomKey).emit(WAITING_ROOM_EVENTS.HOST_LEFT);
 
         setTimeout(async () => {
           safelyDeleteRoom(roomKey);
         }, 2000);
       } else {
-        state.players.forEach((u, userId) => {
-          if (u.socketId === socket.id) {
-            state.players.delete(userId);
-          }
-        });
-
         broadcastPlayerList(roomKey);
       }
       socket.leave(roomKey);
@@ -138,7 +154,7 @@ export function setupWaitingRoomSocketHandlers(io) {
             state.players.delete(userId);
 
             if (isHost) {
-              io.in(roomKey).emit("host-left");
+              io.in(roomKey).emit(WAITING_ROOM_EVENTS.HOST_LEFT);
 
               setTimeout(async () => {
                 safelyDeleteRoom(roomKey);
@@ -156,11 +172,6 @@ export function setupWaitingRoomSocketHandlers(io) {
     socket.on(WAITING_ROOM_EVENTS.REMOVE, async ({ roomKey, userId }) => {
       console.log(`🚫 User ${userId} being removed from room ${roomKey}`);
 
-      if (!(await isWaitingRoom(roomKey))) {
-        console.warn(`❌ Room ${roomKey} is not in waiting status`);
-        return;
-      }
-
       const state = waitingRooms.get(roomKey);
       if (!state) return;
 
@@ -173,6 +184,8 @@ export function setupWaitingRoomSocketHandlers(io) {
         } else {
           broadcastPlayerList(roomKey);
         }
+      } else {
+        console.log(`⚠️ User ${userId} not found in room ${roomKey} for removal`);
       }
     });
 
