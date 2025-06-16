@@ -4,6 +4,24 @@ import { GameRoomModel } from "../models/GameRoom.js";
 
 export function setupWaitingRoomSocketHandlers(io) {
   const waitingRooms = new Map();
+  const deletedRoomKeys = new Set();
+
+  async function safelyDeleteRoom(roomKey) {
+    if (deletedRoomKeys.has(roomKey)) return;
+    deletedRoomKeys.add(roomKey);
+
+    io.in(roomKey).emit("room-closed");
+    const sockets = await io.in(roomKey).fetchSockets();
+    sockets.forEach((s) => s.leave(roomKey));
+    waitingRooms.delete(roomKey);
+
+    try {
+      await GameRoomModel.findOneAndDelete({ key: roomKey });
+      console.log(`🗑️ Room ${roomKey} deleted from DB`);
+    } catch (err) {
+      console.error("❌ DB deletion failed:", err);
+    }
+  }
 
   async function isWaitingRoom(roomKey) {
     try {
@@ -33,6 +51,7 @@ export function setupWaitingRoomSocketHandlers(io) {
   function createWaitingRoomState() {
     return {
       players: new Map(),
+      host: null,
     };
   }
 
@@ -60,6 +79,7 @@ export function setupWaitingRoomSocketHandlers(io) {
     io.in(roomKey).emit(WAITING_ROOM_EVENTS.PLAYERS_UPDATED, {
       players: playersList,
       count: playersList.length,
+      hostId: state.host?.id || null,
     });
   }
 
@@ -76,6 +96,10 @@ export function setupWaitingRoomSocketHandlers(io) {
 
       const state = waitingRooms.get(roomKey) || createWaitingRoomState();
 
+      if (state.players.size === 0) {
+        state.host = { socketId: socket.id, id: user.id, name: user.name };
+      }
+
       state.players.set(user.id, {
         socketId: socket.id,
         id: user.id,
@@ -85,54 +109,60 @@ export function setupWaitingRoomSocketHandlers(io) {
       });
 
       waitingRooms.set(roomKey, state);
-
       socket.join(roomKey);
-      console.log(`✅ User ${user.name} joined room ${roomKey}`);
-
       broadcastPlayerList(roomKey);
     });
 
-    socket.on(WAITING_ROOM_EVENTS.LEAVE, async ({ roomKey, userId }) => {
-      console.log(`👋 User ${userId} attempting to leave room ${roomKey}`);
-
+    socket.on(WAITING_ROOM_EVENTS.LEAVE, async ({ roomKey }, ack) => {
       const state = waitingRooms.get(roomKey);
+      if (!state) return;
 
-      if (state && state.players.has(userId)) {
-        const userData = state.players.get(userId);
-        state.players.delete(userId);
-        console.log(`✅ User ${userData.name} left room ${roomKey}`);
+      const isHost = state.host?.socketId === socket.id;
+      
+      if (isHost) {
+        io.in(roomKey).emit("host-left");
 
-        if (state.players.size === 0) {
-          waitingRooms.delete(roomKey);
-          console.log(`🗑️ Room ${roomKey} deleted (empty)`);
-        } else {
-          broadcastPlayerList(roomKey);
-        }
+        setTimeout(async () => {
+          safelyDeleteRoom(roomKey);
+        }, 2000);
       } else {
-        console.log(`⚠️ User ${userId} not found in room ${roomKey} player list`);
-      }
+        state.players.forEach((u, userId) => {
+          if (u.socketId === socket.id) {
+            state.players.delete(userId);
+          }
+        });
 
+        broadcastPlayerList(roomKey);
+      }
       socket.leave(roomKey);
+      if (typeof ack === "function") ack();
     });
 
     socket.on("disconnecting", async () => {
       console.log(`⚠️ Socket ${socket.id} disconnecting`);
 
       for (const [roomKey, state] of waitingRooms.entries()) {
-        if (state && state.players) {
-          for (const [userId, userData] of state.players.entries()) {
-            if (userData.socketId === socket.id) {
-              state.players.delete(userId);
-              console.log(`👋 User ${userData.name} disconnected from room ${roomKey}`);
+        if (!(await isWaitingRoom(roomKey))) {
+          continue;
+        }
 
-              if (state.players.size === 0) {
-                waitingRooms.delete(roomKey);
-                console.log(`🗑️ Room ${roomKey} deleted (empty)`);
-              } else {
-                broadcastPlayerList(roomKey);
-              }
-              break;
+        for (const [userId, userData] of state.players.entries()) {
+          if (userData.socketId === socket.id) {
+            const isHost = state.host?.socketId === socket.id;
+
+            state.players.delete(userId);
+
+            if (isHost) {
+              io.in(roomKey).emit("host-left");
+
+              setTimeout(async () => {
+                safelyDeleteRoom(roomKey);
+              }, 2000);
+            } else {
+              broadcastPlayerList(roomKey);
             }
+
+            break;
           }
         }
       }
@@ -142,11 +172,10 @@ export function setupWaitingRoomSocketHandlers(io) {
       console.log(`🚫 User ${userId} being removed from room ${roomKey}`);
 
       const state = waitingRooms.get(roomKey);
+      if (!state) return;
 
-      if (state && state.players.has(userId)) {
-        const userData = state.players.get(userId);
+      if (state.players.has(userId)) {
         state.players.delete(userId);
-        console.log(`✅ User ${userData.name} removed from room ${roomKey}`);
 
         if (state.players.size === 0) {
           waitingRooms.delete(roomKey);
