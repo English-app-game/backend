@@ -10,7 +10,7 @@ export function setupWaitingRoomSocketHandlers(io) {
     if (deletedRoomKeys.has(roomKey)) return;
     deletedRoomKeys.add(roomKey);
 
-    io.in(roomKey).emit("room-closed");
+    io.in(roomKey).emit(WAITING_ROOM_EVENTS.ROOM_CLOSED);
     const sockets = await io.in(roomKey).fetchSockets();
     sockets.forEach((s) => s.leave(roomKey));
     waitingRooms.delete(roomKey);
@@ -119,19 +119,20 @@ export function setupWaitingRoomSocketHandlers(io) {
 
       const isHost = state.host?.socketId === socket.id;
       
+      // Remove the leaving player from players map (both host and non-host)
+      state.players.forEach((u, userId) => {
+        if (u.socketId === socket.id) {
+          state.players.delete(userId);
+        }
+      });
+
       if (isHost) {
-        io.in(roomKey).emit("host-left");
+        io.in(roomKey).emit(WAITING_ROOM_EVENTS.HOST_LEFT);
 
         setTimeout(async () => {
           safelyDeleteRoom(roomKey);
         }, 2000);
       } else {
-        state.players.forEach((u, userId) => {
-          if (u.socketId === socket.id) {
-            state.players.delete(userId);
-          }
-        });
-
         broadcastPlayerList(roomKey);
       }
       socket.leave(roomKey);
@@ -153,7 +154,7 @@ export function setupWaitingRoomSocketHandlers(io) {
             state.players.delete(userId);
 
             if (isHost) {
-              io.in(roomKey).emit("host-left");
+              io.in(roomKey).emit(WAITING_ROOM_EVENTS.HOST_LEFT);
 
               setTimeout(async () => {
                 safelyDeleteRoom(roomKey);
