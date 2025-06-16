@@ -1,6 +1,7 @@
 import express from "express";
 import { roomController } from "../../controllers/roomController.js";
 import {
+  DELETE_ROOM_ROUTE,
   GET_ROOM_BY_ID_ROUTE,
   JOIN_ROOM_ROUTE,
   REMOVE_PLAYER_FROM_ROOM_ROUTE,
@@ -19,5 +20,5 @@ router.route(GET_ROOM_BY_ID_ROUTE).get(roomController.getRoomById);
 router.route(REMOVE_PLAYER_FROM_ROOM_ROUTE).delete(roomController.removePlayerFromRoom);
 router.route(JOIN_ROOM_ROUTE).post(roomController.addPlayerToRoom);
 router.route(START_GAME_ROUTE).patch(roomController.startGame);
-
+router.route(DELETE_ROOM_ROUTE).delete(roomController.deleteRoom);
 export { router, ROOM_ROUTE_BY_KEY };

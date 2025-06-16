@@ -33,6 +33,8 @@ async function addRoomToDB(req, res) {
       return res.status(400).json({ error: "Only registered users can create rooms" });
     }
 
+
+    console.log(roomData)
     const newRoom = await addRoomToDbService(roomData);
 
     return res.status(201).json({
@@ -229,7 +231,6 @@ async function startGame(req, res) {
 
     console.log("Comparison:", room.admin.toString(), "===", userId);
 
-
     if (room.currentStatus !== "waiting") {
       return res.status(400).json({ message: "Game already started or finished" });
     }
@@ -243,6 +244,40 @@ async function startGame(req, res) {
     res.status(500).json({ message: "Server error" });
   }
 }
+async function deleteRoom(req, res) {
+  try {
+    const { userId, roomKey: key } = req.body;
+
+
+    if (!key || !userId) {
+      return res.status(400).json({ message: "Room key and userId are required" });
+    }
+
+    const room = await GameRoomModel.findOne({ key });
+
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    const isAdmin = room.admin.toString() === userId;
+
+    if (!isAdmin) {
+      return res.status(403).json({ message: "Only the room admin can delete this room" });
+    }
+
+    room.players = [];
+    room.guestPlayers = [];
+    room.amountOfPlayers = 0;
+
+    await room.save();
+    await GameRoomModel.deleteOne({ key });
+
+    return res.status(200).json({ message: "Room and all players deleted successfully" , roomId: room._id});
+  } catch (err) {
+    console.error("❌ Error deleting room:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
 
 export const roomController = {
   addRoomToDB,
@@ -253,4 +288,5 @@ export const roomController = {
   removePlayerFromRoom,
   addPlayerToRoom,
   startGame,
+  deleteRoom,
 };
