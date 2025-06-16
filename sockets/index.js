@@ -16,6 +16,7 @@ export default function setupSocketHandlers(io) {
     host: null,
     scoreboard: [{}],
     words: [],
+    gameTypeId: "",
   });
 
   const emitRoomState = (roomKey, state) => {
@@ -106,12 +107,13 @@ export default function setupSocketHandlers(io) {
   io.on("connection", (socket) => {
     console.log("🔗 Connected:", socket.id);
 
-    socket.on(TRANSLATION_GAME_EVENTS.JOIN, ({ roomKey, user }) => {
+    socket.on(TRANSLATION_GAME_EVENTS.JOIN, ({ roomKey, user, gameTypeId }) => {
       console.log(`📥 JOIN: Room ${roomKey}, User ${user.name}`);
       console.log(`📥📥📥📥📥📥📥📥📥📥📥📥📥📥📥📥📥📥`);
 
       const state = rooms.get(roomKey) ?? createRoomState();
       state.roomKey = roomKey;
+      console.log(gameTypeId);
 
       if (reconnectMap.has(user.id)) {
         socket.join(roomKey);
@@ -119,6 +121,7 @@ export default function setupSocketHandlers(io) {
         reconnectMap.delete(user.id);
         const returningUser = state.users.get(user.id);
         returningUser.socketId = socket.id;
+        if (state.host.id === user.id) state.host.socketId = socket.id;
         emitRoomState(roomKey, state);
         return;
       }
@@ -128,6 +131,7 @@ export default function setupSocketHandlers(io) {
 
       if (isNewRoom) {
         state.host = { socketId: socket.id, ...user };
+        state.gameTypeId = gameTypeId;
 
         const [hebWords, engWords] = generateWords(TRANSLATION_GAME_CONFIG.WORDS_TO_GENERATE);
         state.words = [...hebWords, ...engWords];
