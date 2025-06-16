@@ -19,7 +19,7 @@ export const TRANSLATION_GAME_EVENTS = {
 };
 
 export const TRANSLATION_GAME_CONFIG = {
-  WORDS_TO_GENERATE: 37,
+  WORDS_TO_GENERATE: 5,
 };
 
 // mock testing data -- end

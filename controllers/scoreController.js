@@ -1,3 +1,4 @@
+import { GameRoomModel } from "../models/GameRoom.js";
 import { ScoreModel } from "../models/Score.js";
 
 export async function saveScore(req, res) {
@@ -8,9 +9,13 @@ export async function saveScore(req, res) {
       return res.status(400).json({ error: "Missing fields" });
     }
 
-    const newScore = await ScoreModel.create({ player, roomId, gameTypeId, score });
-    return res.status(201).json({ message: "Score saved", data: newScore });
+    console.log(player, roomId, gameTypeId, score);
 
+    // const room = await GameRoomModel.find({ key: roomId });
+    // console.log(room);
+
+    const newScore = await ScoreModel.create({ player, roomKey: roomId, gameTypeId, score });
+    return res.status(201).json({ message: "Score saved", data: newScore });
   } catch (err) {
     console.error("Error saving score:", err);
     return res.status(500).json({ error: "Server error" });
