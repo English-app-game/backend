@@ -56,17 +56,6 @@ export default function setupSocketHandlers(io) {
       }
     }
 
-    /**
-     * Disconnection flow:
-     *
-     *                                                     _ room is empty -> Adapter delete room -> socket disconnect handler
-     *                                                    /
-     * Disconnecting socket handler -> Adapter leave room
-     *                                                    \_ room is NOT empty -> nothing here -> socket disconnect handler
-     *
-     *
-     */
-
     if (!userIdToRemove) return console.warn(`⚠️ Could not match socketId ${socketId} to any user`);
 
     console.log("TIMER INITIALIZED");
@@ -94,12 +83,8 @@ export default function setupSocketHandlers(io) {
   adapter.on("delete-room", (room) => {
     if (!isAppRoom(room)) return;
 
-    // const state = rooms.get(room);
-    // if(state.users.size === 0) {
-    //   rooms.delete(room);
-    // }
-
-    // console.log("🗑️ App room deleted:", room);
+   
+    console.log("🗑️ App room deleted:", room);
   });
 
   // ────── Per-Socket Events ────────────────────────────
