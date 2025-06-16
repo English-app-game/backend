@@ -147,7 +147,8 @@ export function setupWaitingRoomSocketHandlers(io) {
           continue;
         }
 
-        for (const [userId, userData] of state.players.entries()) {
+        if (state && state.players) {
+          for (const [userId, userData] of state.players.entries()) {
           if (userData.socketId === socket.id) {
             const isHost = state.host?.socketId === socket.id;
 
@@ -166,6 +167,7 @@ export function setupWaitingRoomSocketHandlers(io) {
             break;
           }
         }
+        }
       }
     });
 
@@ -176,9 +178,16 @@ export function setupWaitingRoomSocketHandlers(io) {
       if (!state) return;
 
       if (state.players.has(userId)) {
+        const isHost = state.host?.id === userId;
         state.players.delete(userId);
 
-        if (state.players.size === 0) {
+        if (isHost) {
+          io.in(roomKey).emit(WAITING_ROOM_EVENTS.HOST_LEFT);
+
+          setTimeout(async () => {
+            safelyDeleteRoom(roomKey);
+          }, 2000);
+        } else if (state.players.size === 0) {
           waitingRooms.delete(roomKey);
           console.log(`🗑️ Room ${roomKey} deleted (empty)`);
         } else {
