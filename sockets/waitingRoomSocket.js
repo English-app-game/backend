@@ -85,9 +85,18 @@ export function setupWaitingRoomSocketHandlers(io) {
 
   io.on("connection", (socket) => {
     console.log(`🔌 New socket connection: ${socket.id}`);
+    
+    // Add a general event listener to see what events are being received
+    const originalOn = socket.on.bind(socket);
+    socket.on = function(event, handler) {
+      if (event.includes('waiting-room') || event.includes('join')) {
+        console.log(`👂 Socket ${socket.id} registering listener for event: ${event}`);
+      }
+      return originalOn(event, handler);
+    };
 
     socket.on(WAITING_ROOM_EVENTS.JOIN, async ({ roomKey, user }) => {
-      console.log(`👋 User ${user.name} (${user.id}) attempting to join room ${roomKey}`);
+      console.log(`👋 User ${user.name} (${user.id}) attempting to join room ${roomKey} from socket ${socket.id}`);
 
       if (!(await isWaitingRoom(roomKey))) {
         console.warn(`❌ Room ${roomKey} is not in waiting status`);
@@ -110,6 +119,7 @@ export function setupWaitingRoomSocketHandlers(io) {
 
       waitingRooms.set(roomKey, state);
       socket.join(roomKey);
+      console.log(`✅ User ${user.name} successfully joined room ${roomKey}. Total players: ${state.players.size}`);
       broadcastPlayerList(roomKey);
     });
 
