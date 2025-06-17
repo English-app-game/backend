@@ -33,8 +33,7 @@ async function addRoomToDB(req, res) {
       return res.status(400).json({ error: "Only registered users can create rooms" });
     }
 
-
-    console.log(roomData)
+    console.log(roomData);
     const newRoom = await addRoomToDbService(roomData);
 
     return res.status(201).json({
@@ -248,7 +247,7 @@ async function deleteRoom(req, res) {
   try {
     const { userId, roomKey: key } = req.body;
 
-
+    console.log(key, userId);
     if (!key || !userId) {
       return res.status(400).json({ message: "Room key and userId are required" });
     }
@@ -272,7 +271,9 @@ async function deleteRoom(req, res) {
     await room.save();
     await GameRoomModel.deleteOne({ key });
 
-    return res.status(200).json({ message: "Room and all players deleted successfully" , roomId: room._id});
+    return res
+      .status(200)
+      .json({ message: "Room and all players deleted successfully", roomId: room._id });
   } catch (err) {
     console.error("❌ Error deleting room:", err);
     return res.status(500).json({ message: "Server error" });

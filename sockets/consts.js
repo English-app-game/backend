@@ -3,6 +3,8 @@ export const WAITING_ROOM_EVENTS = {
   LEAVE: "leave-waiting-room",
   REMOVE: "remove-from-waiting-room",
   PLAYERS_UPDATED: "waiting-room-players-updated",
+  HOST_LEFT: "host-left",
+  ROOM_CLOSED: "room-closed",
 };
 
 export const TRANSLATION_GAME_EVENTS = {
