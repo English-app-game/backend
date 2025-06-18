@@ -1,5 +1,14 @@
-export const generateRandomColor = () =>
-  "#" +
-  Math.floor(Math.random() * 0xffffff)
-    .toString(16)
-    .padStart(6, "0");
+const playerColors = [
+  "#fde047",
+  "#fca5a5",
+  "#ddd6fe",
+  "#86efac", 
+  "#bae6fd", 
+  "#e5e7eb", 
+  "#67e8f9", 
+];
+
+export const generateRandomColor = () => {
+  const index = Math.floor(Math.random() * playerColors.length);
+  return playerColors[index];
+};
