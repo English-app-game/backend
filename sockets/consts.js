@@ -24,14 +24,14 @@ export const TRANSLATION_GAME_CONFIG = {
   WORDS_TO_GENERATE: 5,
 };
 
-export const MEMORY_GAME_EVENTS = {
-  JOIN: "memory-game/join",
-  START: "memory-game/start",
-  PLAYER_SCORED: "memory-game/player-scored",
-  TURN_CHANGED: "memory-game/turn-changed",
-  TURN_ENDED: "memory-game/turn-ended",
-  END: "memory-game/end"
-};
+// export const MEMORY_GAME_EVENTS = {
+//   JOIN: "memory-game/join",
+//   START: "memory-game/start",
+//   PLAYER_SCORED: "memory-game/player-scored",
+//   TURN_CHANGED: "memory-game/turn-changed",
+//   TURN_ENDED: "memory-game/turn-ended",
+//   END: "memory-game/end"
+// };
 
 // mock testing data -- end
 import { v4 as uuidv4 } from "uuid";

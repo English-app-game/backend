@@ -5,7 +5,7 @@ import { Server } from "socket.io";
 import { CLIENT_URL, PORT } from "./config/consts.js";
 import setupSocketHandlers from "./sockets/index.js";
 import { setupWaitingRoomSocketHandlers } from "./sockets/waitingRoomSocket.js";
-import {setupMemoryGameHandlers} from "./services/memoryGameHandler.js";
+import {setupMemoryGame} from "./sockets/memoryGameIndex.js";
 
 
 const startServer = async () => {
@@ -24,7 +24,7 @@ const startServer = async () => {
 
   setupSocketHandlers(io);
   setupWaitingRoomSocketHandlers(io);
-  setupMemoryGameHandlers(io); 
+  setupMemoryGame(io); 
 
   server.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
