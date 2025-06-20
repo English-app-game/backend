@@ -29,6 +29,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.13.2",
     "nodemailer": "^7.0.3",
+    "react-confetti": "^6.4.0",
     "socket.io": "^4.8.1",
     "uuid": "^11.1.0"
   },

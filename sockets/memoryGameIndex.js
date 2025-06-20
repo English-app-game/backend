@@ -31,19 +31,22 @@ function generateMemoryCards(count = 10) {
 
  const validCount = Math.min(count, wordPairs.length);
 
- const shuffled = [...wordPairs]
+ const shuffledPairs = [...wordPairs]
     .sort(() => 0.5 - Math.random())
     .slice(0, validCount);
 
   const cards = [];
 
-  shuffled.forEach(({ he, en }) => {
+  shuffledPairs.forEach(({ he, en }) => {
     const id = generateId();
     cards.push(
       { id, text: he, lang: "he", matched: false, flipped: false },
       { id, text: en, lang: "en", matched: false, flipped: false }
     );
   });
+  console.log("Generated cards:", cards);
+  console.log("heWords:", cards.filter(c => c.lang === "he"));
+  console.log("enWords:", cards.filter(c => c.lang === "en"));
 
   return cards.sort(() => 0.5 - Math.random());
 }
@@ -106,8 +109,8 @@ export function setupMemoryGame(io) {
 });
 
     // validation for flip card
-    socket.on("memory-game/flip-card", ({ roomKey, userId, cardId }, ack) => {
-      console.log("🧠 [SERVER] flip-card received", roomKey, userId, cardId);
+    socket.on("memory-game/flip-card", ({ roomKey, userId, cardId, lang }, ack) => {
+      console.log("🧠 [SERVER] flip-card received", { roomKey, userId, cardId, lang });
       const game = memoryGames.get(roomKey);
       if (!game) return ack?.({ error: "Room not found" });
 
@@ -115,8 +118,10 @@ export function setupMemoryGame(io) {
         return ack?.({ error: "Not your turn" });
       }
 
-      let card = game.words.heWords.find((c) => c.id === cardId);
-      if (!card) card = game.words.enWords.find((c) => c.id === cardId);
+      const cardArray = lang === "he" ? game.words.heWords : game.words.enWords;
+      const card = cardArray.find((c) => c.id === cardId);
+
+      if (!card) return ack?.({ error: "Card not found" });
       if (card.flipped) return ack?.({ error: "Card already flipped" });
       if (card.matched) return ack?.({ error: "Card already matched" });
 
@@ -128,68 +133,61 @@ export function setupMemoryGame(io) {
     });
 
     // checking match between 2 cards
-    socket.on("memory-game/match-check", ({ roomKey, userId, firstCardId, secondCardId }, ack) => {
-  const game = memoryGames.get(roomKey);
-  if (!game) return ack?.({ error: "Room not found" });
+    socket.on("memory-game/match-check", ({ roomKey, userId, firstCard, secondCard }, ack) => {
+      const game = memoryGames.get(roomKey);
+      if (!game) return ack?.({ error: "Room not found" });
 
-  if (game.turn !== userId) return ack?.({ error: "Not your turn" });
+      if (game.turn !== userId) {
+        return ack?.({ error: "Not your turn" });
+      }
 
-  const allCards = [...game.words.heWords, ...game.words.enWords];
-  const first = allCards.find((c) => c.id === firstCardId);
-  const second = allCards.find((c) => c.id === secondCardId);
+      const cardArray1 = firstCard.lang === 'he' ? game.words.heWords : game.words.enWords;
+      const card1 = cardArray1.find(c => c.id === firstCard.id);
 
-  if (!first || !second) return ack?.({ error: "Card(s) not found" });
-  if (first.matched || second.matched) return ack?.({ error: "One or both cards already matched" });
+      const cardArray2 = secondCard.lang === 'he' ? game.words.heWords : game.words.enWords;
+      const card2 = cardArray2.find(c => c.id === secondCard.id);
 
-  const isMatch = first.id === second.id && first !== second;
+      if (!card1 || !card2) return ack?.({ error: "Card(s) not found" });
+      if (card1.matched || card2.matched) return ack?.({ error: "One or both cards already matched" });
 
-  if (isMatch) {
-    first.matched = true;
-    second.matched = true;
-    first.flipped = true;
-    second.flipped = true;
+      const isMatch = card1.id === card2.id && card1.lang !== card2.lang;
 
-    const player = game.users[userId];
-    if (player) player.score += 1;
+      if (isMatch) {
+        card1.matched = true;
+        card2.matched = true;
+        card1.flipped = true;
+        card2.flipped = true;
 
-    game.score = (game.score || 0) + 1;
+        const player = game.users[userId];
+        if (player) player.score += 1;
 
-    io.to(roomKey).emit("memory-game/state", game);
-  } else {
-    // ❗ מוסיפים השהייה כדי להראות את הקלפים לפני Flip-Back
-    setTimeout(() => {
-      first.flipped = false;
-      second.flipped = false;
+        io.to(roomKey).emit("memory-game/state", game);
+      } else {
+        setTimeout(() => {
+          card1.flipped = false;
+          card2.flipped = false;
 
-      // שליחת הפקודה להפוך חזרה
-      console.log("Before flip- back");
-      io.to(roomKey).emit("memory-game/flip-back", {
-        firstCardId,
-        secondCardId
-      });
+          const userIds = Object.keys(game.users);
+          const currentIndex = userIds.indexOf(userId);
+          const nextPlayer = userIds[(currentIndex + 1) % userIds.length];
+          game.turn = nextPlayer;
 
-      console.log("After flip- back and replace turn");
-      // החלפת תור
-      const userIds = Object.keys(game.users);
-      const currentIndex = userIds.indexOf(userId);
-      const nextPlayer = userIds[(currentIndex + 1) % userIds.length];
-      game.turn = nextPlayer;
+          io.to(roomKey).emit("memory-game/state", game);
+        }, 1200);
+      }
 
-      io.to(roomKey).emit("memory-game/state", game);
-    }, 1200);
-  }
+      // Check for game end
+      const allCards = [...game.words.heWords, ...game.words.enWords];
+      const allMatched = allCards.every((c) => c.matched);
+      if (allMatched) {
+        io.to(roomKey).emit("memory-game/end", {
+          winners: Object.values(game.users).sort((a, b) => b.score - a.score),
+          finalScore: game.score
+        });
+        memoryGames.delete(roomKey);
+      }
 
-  // בדיקה אם סיום משחק
-  const allMatched = allCards.every((c) => c.matched);
-  if (allMatched) {
-    io.to(roomKey).emit("memory-game/end", {
-      winners: Object.values(game.users).sort((a, b) => b.score - a.score),
-      finalScore: game.score
+      ack?.({ success: true, match: isMatch });
     });
-    memoryGames.delete(roomKey);
-  }
-
-  ack?.({ success: true, match: isMatch });
-});
   });
 }
