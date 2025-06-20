@@ -8,7 +8,11 @@ const playerColors = [
   "#67e8f9", 
 ];
 
-export const generateRandomColor = () => {
-  const index = Math.floor(Math.random() * playerColors.length);
-  return playerColors[index];
+export const generateRandomColor = (usedColors = []) => {
+  const availableColors = playerColors.filter((c) => !usedColors.includes(c));
+  if (availableColors.length === 0) {
+    return "#000000";
+  }
+  const index = Math.floor(Math.random() * availableColors.length);
+  return availableColors[index];
 };
