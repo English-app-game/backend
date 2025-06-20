@@ -1,6 +1,7 @@
 import { WAITING_ROOM_EVENTS } from "./consts.js";
 import { GAME_ROOM_STATUS } from "../models/statuses.js";
 import { GameRoomModel } from "../models/GameRoom.js";
+import mongoose from "mongoose";
 
 export function setupWaitingRoomSocketHandlers(io) {
   const waitingRooms = new Map();
@@ -27,23 +28,12 @@ export function setupWaitingRoomSocketHandlers(io) {
     try {
       const room = await GameRoomModel.findOne({ key: roomKey });
       if (!room) {
-        console.log(`🔍 Room ${roomKey} not found in database`);
         return false;
       }
       
-      console.log(`🔍 Room ${roomKey} found:`, {
-        currentStatus: room.currentStatus,
-        isActive: room.isActive,
-        amountOfPlayers: room.amountOfPlayers,
-        admin: room.admin
-      });
-      
-      const isWaiting = room.currentStatus === GAME_ROOM_STATUS.WAITING;
-      console.log(`🔍 Room ${roomKey} status check: ${room.currentStatus} === ${GAME_ROOM_STATUS.WAITING} = ${isWaiting}`);
-      
-      return isWaiting;
+      return room.currentStatus === GAME_ROOM_STATUS.WAITING;
     } catch (error) {
-      console.error('Error checking room status:', error);
+      console.error('❌ Error checking room status:', error);
       return false;
     }
   }
@@ -75,7 +65,6 @@ export function setupWaitingRoomSocketHandlers(io) {
       isGuest: player.isGuest || false,
     }));
 
-    console.log(`📢 Broadcasting player list for room ${roomKey}:`, playersList);
     io.in(roomKey).emit(WAITING_ROOM_EVENTS.PLAYERS_UPDATED, {
       players: playersList,
       count: playersList.length,
@@ -84,20 +73,8 @@ export function setupWaitingRoomSocketHandlers(io) {
   }
 
   io.on("connection", (socket) => {
-    console.log(`🔌 New socket connection: ${socket.id}`);
-    
-    // Add a general event listener to see what events are being received
-    const originalOn = socket.on.bind(socket);
-    socket.on = function(event, handler) {
-      if (event.includes('waiting-room') || event.includes('join')) {
-        console.log(`👂 Socket ${socket.id} registering listener for event: ${event}`);
-      }
-      return originalOn(event, handler);
-    };
 
     socket.on(WAITING_ROOM_EVENTS.JOIN, async ({ roomKey, user }) => {
-      console.log(`👋 User ${user.name} (${user.id}) attempting to join room ${roomKey} from socket ${socket.id}`);
-
       if (!(await isWaitingRoom(roomKey))) {
         console.warn(`❌ Room ${roomKey} is not in waiting status`);
         return;
@@ -119,24 +96,36 @@ export function setupWaitingRoomSocketHandlers(io) {
 
       waitingRooms.set(roomKey, state);
       socket.join(roomKey);
-      console.log(`✅ User ${user.name} successfully joined room ${roomKey}. Total players: ${state.players.size}`);
+      console.log(`✅ ${user.name} joined room ${roomKey} (${state.players.size} players)`);
       broadcastPlayerList(roomKey);
     });
 
     socket.on(WAITING_ROOM_EVENTS.LEAVE, async ({ roomKey }, ack) => {
       const state = waitingRooms.get(roomKey);
-      if (!state) return;
+      if (!state) {
+        if (typeof ack === "function") ack();
+        return;
+      }
 
       const isHost = state.host?.socketId === socket.id;
+      let removedUserId = null;
+      let removedUserName = null;
       
-      // Remove the leaving player from players map (both host and non-host)
+      // Find and remove the leaving player from players map
       state.players.forEach((u, userId) => {
         if (u.socketId === socket.id) {
+          removedUserId = userId;
+          removedUserName = u.name;
           state.players.delete(userId);
         }
       });
 
+      if (removedUserName) {
+        console.log(`🚪 ${removedUserName} left room ${roomKey}`);
+      }
+
       if (isHost) {
+        console.log(`👑 Host left room ${roomKey}`);
         io.in(roomKey).emit(WAITING_ROOM_EVENTS.HOST_LEFT);
 
         setTimeout(async () => {
@@ -145,12 +134,15 @@ export function setupWaitingRoomSocketHandlers(io) {
       } else {
         broadcastPlayerList(roomKey);
       }
+      
       socket.leave(roomKey);
       if (typeof ack === "function") ack();
     });
 
     socket.on("disconnecting", async () => {
-      console.log(`⚠️ Socket ${socket.id} disconnecting`);
+      // Only log if socket was actually in waiting rooms
+      const socketRooms = [...socket.rooms].filter(room => room !== socket.id);
+      let wasInWaitingRoom = false;
 
       for (const [roomKey, state] of waitingRooms.entries()) {
         if (!(await isWaitingRoom(roomKey))) {
@@ -159,37 +151,96 @@ export function setupWaitingRoomSocketHandlers(io) {
 
         if (state && state.players) {
           for (const [userId, userData] of state.players.entries()) {
-          if (userData.socketId === socket.id) {
-            const isHost = state.host?.socketId === socket.id;
+            if (userData.socketId === socket.id) {
+              wasInWaitingRoom = true;
+              console.log(`🚪 ${userData.name} disconnected from room ${roomKey}`);
+              const isHost = state.host?.socketId === socket.id;
 
-            state.players.delete(userId);
+              state.players.delete(userId);
 
-            if (isHost) {
-              io.in(roomKey).emit(WAITING_ROOM_EVENTS.HOST_LEFT);
+              // Also remove from database with retry logic
+              const removeFromDB = async (retryCount = 0) => {
+                const MAX_RETRIES = 3;
+                try {
+                  const room = await GameRoomModel.findOne({ key: roomKey });
+                  if (!room) {
+                    return;
+                  }
 
-              setTimeout(async () => {
-                safelyDeleteRoom(roomKey);
-              }, 2000);
-            } else {
-              broadcastPlayerList(roomKey);
+                  const isObjectId = mongoose.Types.ObjectId.isValid(userId);
+                  
+                  // Check if user is actually in the room
+                  const userExists = isObjectId 
+                    ? room.players.some((playerId) => playerId.toString() === userId)
+                    : room.guestPlayers.some((g) => g.id === userId);
+                  
+                  if (!userExists) {
+                    return;
+                  }
+
+                  // Remove player
+                  if (isObjectId) {
+                    room.players = room.players.filter((playerId) => playerId.toString() !== userId);
+                  } else {
+                    room.guestPlayers = room.guestPlayers.filter((g) => g.id !== userId);
+                  }
+                  room.amountOfPlayers = room.players.length + room.guestPlayers.length;
+                  
+                  if (room.amountOfPlayers === 0) {
+                    // Use findOneAndDelete to avoid race conditions
+                    const deletedRoom = await GameRoomModel.findOneAndDelete({ 
+                      key: roomKey,
+                      _id: room._id 
+                    });
+                    
+                    if (deletedRoom) {
+                      console.log(`🗑️ Room ${roomKey} deleted (empty)`);
+                    }
+                  } else {
+                    await room.save();
+                  }
+                } catch (dbError) {
+                  if ((dbError.name === 'VersionError' || dbError.name === 'DocumentNotFoundError') && retryCount < MAX_RETRIES) {
+                    await new Promise(resolve => setTimeout(resolve, 100 * (retryCount + 1)));
+                    return removeFromDB(retryCount + 1);
+                  }
+                  console.error("❌ Database update failed during disconnect:", dbError);
+                }
+              };
+              
+              await removeFromDB();
+
+              if (isHost) {
+                console.log(`👑 Host disconnected from room ${roomKey}`);
+                io.in(roomKey).emit(WAITING_ROOM_EVENTS.HOST_LEFT);
+
+                setTimeout(async () => {
+                  safelyDeleteRoom(roomKey);
+                }, 2000);
+              } else {
+                broadcastPlayerList(roomKey);
+              }
+
+              break;
             }
-
-            break;
           }
         }
-        }
       }
+      
     });
 
     socket.on(WAITING_ROOM_EVENTS.REMOVE, async ({ roomKey, userId }) => {
-      console.log(`🚫 User ${userId} being removed from room ${roomKey}`);
-
       const state = waitingRooms.get(roomKey);
       if (!state) return;
 
       if (state.players.has(userId)) {
+        const playerName = state.players.get(userId)?.name;
         const isHost = state.host?.id === userId;
         state.players.delete(userId);
+
+        if (playerName) {
+          console.log(`🚫 ${playerName} removed from room ${roomKey}`);
+        }
 
         if (isHost) {
           io.in(roomKey).emit(WAITING_ROOM_EVENTS.HOST_LEFT);
@@ -203,13 +254,7 @@ export function setupWaitingRoomSocketHandlers(io) {
         } else {
           broadcastPlayerList(roomKey);
         }
-      } else {
-        console.log(`⚠️ User ${userId} not found in room ${roomKey} for removal`);
       }
-    });
-
-    socket.on("disconnect", () => {
-      console.log(`❌ Socket ${socket.id} disconnected`);
     });
   });
 

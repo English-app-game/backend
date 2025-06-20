@@ -25,5 +25,6 @@ export const SCORE_ROUTE= "/api/score";
 export const GET_LAST_SCORE_ROUTE = "/last/:playerId";
 export const SAVE_SCORE_ROUTE = "/save";
 export const START_GAME_ROUTE = `/:id/start`;
-export const DELETE_ROOM_ROUTE = '/:id'
+export const DELETE_ROOM_ROUTE = '/:id';
+export const QUICK_LEAVE_ROUTE = '/quick-leave';
 
