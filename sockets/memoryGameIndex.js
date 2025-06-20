@@ -107,6 +107,7 @@ export function setupMemoryGame(io) {
 
     // validation for flip card
     socket.on("memory-game/flip-card", ({ roomKey, userId, cardId }, ack) => {
+      console.log("🧠 [SERVER] flip-card received", roomKey, userId, cardId);
       const game = memoryGames.get(roomKey);
       if (!game) return ack?.({ error: "Room not found" });
 
@@ -114,84 +115,81 @@ export function setupMemoryGame(io) {
         return ack?.({ error: "Not your turn" });
       }
 
-      const card = [...game.words.heWords, ...game.words.enWords].find((c) => c.id === cardId);
-      if (!card) return ack?.({ error: "Card not found" });
+      let card = game.words.heWords.find((c) => c.id === cardId);
+      if (!card) card = game.words.enWords.find((c) => c.id === cardId);
       if (card.flipped) return ack?.({ error: "Card already flipped" });
       if (card.matched) return ack?.({ error: "Card already matched" });
 
       card.flipped = true;
       io.to(roomKey).emit("memory-game/state", game);
       return ack?.({ success: true });
+
+
     });
 
     // checking match between 2 cards
     socket.on("memory-game/match-check", ({ roomKey, userId, firstCardId, secondCardId }, ack) => {
-      const game = memoryGames.get(roomKey);
-      if (!game) return ack?.({ error: "Room not found" });
+  const game = memoryGames.get(roomKey);
+  if (!game) return ack?.({ error: "Room not found" });
 
-      if (game.turn !== userId) {
-        return ack?.({ error: "Not your turn" });
-      }
+  if (game.turn !== userId) return ack?.({ error: "Not your turn" });
 
-      const allCards = [...game.words.heWords, ...game.words.enWords];
-      const first = allCards.find((c) => c.id === firstCardId);
-      const second = allCards.find((c) => c.id === secondCardId);
+  const allCards = [...game.words.heWords, ...game.words.enWords];
+  const first = allCards.find((c) => c.id === firstCardId);
+  const second = allCards.find((c) => c.id === secondCardId);
 
-      if (!first || !second) return ack?.({ error: "Card(s) not found" });
-      if (first.matched || second.matched) return ack?.({ error: "One or both cards already matched" });
+  if (!first || !second) return ack?.({ error: "Card(s) not found" });
+  if (first.matched || second.matched) return ack?.({ error: "One or both cards already matched" });
 
-      const isMatch = first.id === second.id && first !== second;
+  const isMatch = first.id === second.id && first !== second;
 
-  //updates the fields if there is a match
-      if (isMatch) {
-        first.matched = true;
-        second.matched = true;
-        first.flipped = true;
-        second.flipped = true;
+  if (isMatch) {
+    first.matched = true;
+    second.matched = true;
+    first.flipped = true;
+    second.flipped = true;
 
-        //updates score for both the player and the game
-        const player = game.users[userId];
-        if (player) {
-          player.score += 1;
-        }
+    const player = game.users[userId];
+    if (player) player.score += 1;
 
-        game.score = (game.score || 0) + 1;
-      }
+    game.score = (game.score || 0) + 1;
 
-      if (isMatch) {
-        first.matched = true;
-        second.matched = true;
-        first.flipped = true;
-        second.flipped = true;
+    io.to(roomKey).emit("memory-game/state", game);
+  } else {
+    // ❗ מוסיפים השהייה כדי להראות את הקלפים לפני Flip-Back
+    setTimeout(() => {
+      first.flipped = false;
+      second.flipped = false;
 
-        const player = game.users[userId];
-        if (player) {
-          player.score += 1;
-        }
+      // שליחת הפקודה להפוך חזרה
+      console.log("Before flip- back");
+      io.to(roomKey).emit("memory-game/flip-back", {
+        firstCardId,
+        secondCardId
+      });
 
-        game.score = (game.score || 0) + 1;
-      } else {
-        // passing turn if it isnt a match 
-        const userIds = Object.keys(game.users);
-        const currentIndex = userIds.indexOf(userId);
-        const nextPlayer = userIds[(currentIndex + 1) % userIds.length];
-        game.turn = nextPlayer;
-      }
+      console.log("After flip- back and replace turn");
+      // החלפת תור
+      const userIds = Object.keys(game.users);
+      const currentIndex = userIds.indexOf(userId);
+      const nextPlayer = userIds[(currentIndex + 1) % userIds.length];
+      game.turn = nextPlayer;
 
-      //update game state
       io.to(roomKey).emit("memory-game/state", game);
+    }, 1200);
+  }
 
-      // checks if the game ended
-      const allMatched = [...game.words.heWords, ...game.words.enWords].every(c => c.matched);
-      if (allMatched) {
-        io.to(roomKey).emit("memory-game/end", {
-          winners: Object.values(game.users).sort((a, b) => b.score - a.score),
-          finalScore: game.score
-        });
-        memoryGames.delete(roomKey);
-      }
-
-      return ack?.({ success: true, match: isMatch });
+  // בדיקה אם סיום משחק
+  const allMatched = allCards.every((c) => c.matched);
+  if (allMatched) {
+    io.to(roomKey).emit("memory-game/end", {
+      winners: Object.values(game.users).sort((a, b) => b.score - a.score),
+      finalScore: game.score
     });
+    memoryGames.delete(roomKey);
+  }
+
+  ack?.({ success: true, match: isMatch });
+});
   });
 }
