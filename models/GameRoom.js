@@ -55,6 +55,7 @@ const gameRoomSchema = new mongoose.Schema({
   },
   level: {
     type: String,
+    enum: ['easy', 'medium', 'hard'], 
     required: true
   },
   finishedAt: { type: Date }

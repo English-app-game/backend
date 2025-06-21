@@ -32,6 +32,11 @@ async function addRoomToDB(req, res) {
     if (!mongoose.Types.ObjectId.isValid(roomData.admin)) {
       return res.status(400).json({ error: "Only registered users can create rooms" });
     }
+    
+    const ALLOWED_LEVELS = ['easy', 'medium', 'hard'];
+    if (!ALLOWED_LEVELS.includes(roomData.level)) {
+    return res.status(400).json({ error: "Invalid level value" });
+    }
 
     const newRoom = await addRoomToDbService(roomData);
 
