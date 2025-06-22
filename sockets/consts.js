@@ -97,7 +97,7 @@ const shuffleArray = (arr) => {
 };
 
 // will later generate data from apis and translations
-export function generateWords(count = 11) {
+export function generateWords(count = TRANSLATION_GAME_CONFIG.WORDS_TO_GENERATE) {
   const shuffled = [...WORD_BANK].sort(() => 0.5 - Math.random());
   const selected = shuffled.slice(0, count);
 

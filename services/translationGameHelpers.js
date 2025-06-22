@@ -1,10 +1,4 @@
-const playerColors = [
-  "#fbbf24",
-  "#fb7185", 
-  "#c4b5fd", 
-  "#4ade80", 
-  "#38bdf8", 
-];
+const playerColors = ["#fde047", "#fca5a5", "#ddd6fe", "#86efac", "#bae6fd", "#e5e7eb", "#67e8f9"];
 
 export const generateRandomColor = (usedColors = []) => {
   const availableColors = playerColors.filter((c) => !usedColors.includes(c));
