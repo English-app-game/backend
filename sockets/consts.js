@@ -7,6 +7,12 @@ export const WAITING_ROOM_EVENTS = {
   ROOM_CLOSED: "room-closed",
 };
 
+export const WAITING_ROOM_TIMEOUTS = {
+  HOST_RECONNECTION_GRACE_PERIOD: 3000,  // 3 seconds
+  HOST_LEFT_GRACE_PERIOD: 3000,          // 3 seconds
+  TEMP_DISCONNECTION_TIMEOUT: 5000,      // 5 seconds
+};
+
 export const TRANSLATION_GAME_EVENTS = {
   JOIN: "translation-game/join",
   LEAVE: "translation-game/leave",

@@ -6,6 +6,7 @@ import {
   JOIN_ROOM_ROUTE,
   REMOVE_PLAYER_FROM_ROOM_ROUTE,
   START_GAME_ROUTE,
+  QUICK_LEAVE_ROUTE,
 } from "../../config/consts.js";
 
 const router = express.Router();
@@ -22,4 +23,5 @@ router.route(REMOVE_PLAYER_FROM_ROOM_ROUTE).delete(roomController.removePlayerFr
 router.route(JOIN_ROOM_ROUTE).post(roomController.addPlayerToRoom);
 router.route(START_GAME_ROUTE).patch(roomController.startGame);
 router.route(DELETE_ROOM_ROUTE).delete(roomController.deleteRoom);
+router.route(QUICK_LEAVE_ROUTE).post(roomController.quickLeaveRoom);
 export { router, ROOM_ROUTE_BY_KEY };

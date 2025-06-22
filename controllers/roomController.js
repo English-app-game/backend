@@ -32,8 +32,12 @@ async function addRoomToDB(req, res) {
     if (!mongoose.Types.ObjectId.isValid(roomData.admin)) {
       return res.status(400).json({ error: "Only registered users can create rooms" });
     }
+    
+    const ALLOWED_LEVELS = ['easy', 'medium', 'hard'];
+    if (!ALLOWED_LEVELS.includes(roomData.level)) {
+    return res.status(400).json({ error: "Invalid level value" });
+    }
 
-    console.log(roomData);
     const newRoom = await addRoomToDbService(roomData);
 
     return res.status(201).json({
@@ -59,14 +63,12 @@ async function getRooms(req, res) {
 async function checkRoomAvailabilityByKey(req, res) {
   try {
     const { key } = req.params;
-    console.log("🔍 Checking room key:", req.params.key);
 
     if (!key) {
       return res.status(400).json({ message: "Room key is required" });
     }
 
     const room = await GameRoomModel.findOne({ key });
-    console.log("🔎 Room found:", room);
 
     if (!room) {
       return res.status(404).json({ message: "Room not found" });
@@ -126,36 +128,74 @@ async function getRoomById(req, res) {
 }
 
 async function removePlayerFromRoom(req, res) {
-  try {
-    const { roomKey, userId } = req.body;
-    if (!roomKey || !userId) {
-      return res.status(400).json({ message: "roomKey and userId are required" });
+  const MAX_RETRIES = 3;
+  let attempt = 0;
+
+  while (attempt < MAX_RETRIES) {
+    try {
+      const { roomKey, userId } = req.body;
+      if (!roomKey || !userId) {
+        return res.status(400).json({ message: "roomKey and userId are required" });
+      }
+
+      const room = await GameRoomModel.findOne({ key: roomKey });
+      if (!room) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+
+      const isObjectId = mongoose.Types.ObjectId.isValid(userId);
+      
+      // Check if user is actually in the room
+      const userExists = isObjectId 
+        ? room.players.some((playerId) => playerId.toString() === userId)
+        : room.guestPlayers.some((g) => g.id === userId);
+      
+      if (!userExists) {
+        return res.status(200).json({ message: "Player already removed from room" });
+      }
+
+      // Remove player
+      if (isObjectId) {
+        room.players = room.players.filter((playerId) => playerId.toString() !== userId);
+      } else {
+        room.guestPlayers = room.guestPlayers.filter((g) => g.id !== userId);
+      }
+
+      room.amountOfPlayers = room.players.length + room.guestPlayers.length;
+
+      if (room.amountOfPlayers === 0) {
+        // Use findOneAndDelete to avoid race conditions
+        const deletedRoom = await GameRoomModel.findOneAndDelete({ 
+          key: roomKey,
+          _id: room._id 
+        });
+        
+        if (deletedRoom) {
+          return res.status(200).json({ message: "Player removed and room deleted (no players left)" });
+        } else {
+          return res.status(200).json({ message: "Room already deleted by another process" });
+        }
+      }
+
+      // Save with version check
+      await room.save();
+      return res.status(200).json({ message: "Player removed from room", room });
+
+    } catch (err) {
+      attempt++;
+      
+      // Handle version errors and retry
+      if ((err.name === 'VersionError' || err.name === 'DocumentNotFoundError') && attempt < MAX_RETRIES) {
+        await new Promise(resolve => setTimeout(resolve, 100 * attempt)); // exponential backoff
+        continue;
+      }
+      
+      console.error("❌ Error in removePlayerFromRoom controller:", err);
+      return res.status(500).json({ message: "Server error" });
     }
-
-    const room = await GameRoomModel.findOne({ key: roomKey });
-    if (!room) return res.status(404).json({ message: "Room not found" });
-
-    const isObjectId = mongoose.Types.ObjectId.isValid(userId);
-
-    if (isObjectId) {
-      room.players = room.players.filter((playerId) => playerId.toString() !== userId);
-    } else {
-      room.guestPlayers = room.guestPlayers.filter((g) => g.id !== userId);
-    }
-
-    room.amountOfPlayers = room.players.length + room.guestPlayers.length;
-
-    if (room.amountOfPlayers === 0) {
-      await GameRoomModel.deleteOne({ key: roomKey });
-      return res.status(200).json({ message: "Player removed and room deleted (no players left)" });
-    }
-
-    await room.save();
-    return res.status(200).json({ message: "Player removed from room", room });
-  } catch (err) {
-    console.error("❌ Error in removePlayerFromRoom controller:", err);
-    return res.status(500).json({ message: "Server error" });
   }
+  
+  return res.status(500).json({ message: "Failed after multiple retries" });
 }
 
 async function addPlayerToRoom(req, res) {
@@ -207,15 +247,12 @@ async function startGame(req, res) {
   try {
     const { id: roomKey } = req.params;
     const { userId } = req.body;
-    console.log("Received userId:", userId);
 
     const room = await GameRoomModel.findOne({ key: roomKey });
 
     if (!room) {
       return res.status(404).json({ message: "Room not found" });
     }
-
-    console.log("Room admin ID:", room.admin.toString());
 
     // First check if user is a guest
     const isGuest = !mongoose.Types.ObjectId.isValid(userId);
@@ -227,8 +264,6 @@ async function startGame(req, res) {
     if (room.admin.toString() !== userId) {
       return res.status(403).json({ message: "Only the host can start the game" });
     }
-
-    console.log("Comparison:", room.admin.toString(), "===", userId);
 
     if (room.currentStatus !== "waiting") {
       return res.status(400).json({ message: "Game already started or finished" });
@@ -247,7 +282,6 @@ async function deleteRoom(req, res) {
   try {
     const { userId, roomKey: key } = req.body;
 
-    console.log(key, userId);
     if (!key || !userId) {
       return res.status(400).json({ message: "Room key and userId are required" });
     }
@@ -299,6 +333,54 @@ async function getPlayersInRoom(req, res) {
   } catch (err) {
     console.error("❌ Error in getPlayersInRoom:", err);
     return res.status(500).json({ message: "Server error" });
+async function quickLeaveRoom(req, res) {
+  try {
+    const { roomKey, userId } = req.body;
+    
+    // This is a fire-and-forget endpoint for browser close scenarios
+    // We won't wait for responses or do extensive validation
+    if (!roomKey || !userId) {
+      return res.status(200).json({ message: "Missing parameters, but acknowledged" });
+    }
+
+    // Use atomic operations to avoid race conditions
+    const isObjectId = mongoose.Types.ObjectId.isValid(userId);
+    
+    if (isObjectId) {
+      // Atomic update for registered users
+      const result = await GameRoomModel.findOneAndUpdate(
+        { key: roomKey, players: userId },
+        { 
+          $pull: { players: userId },
+          $inc: { amountOfPlayers: -1 }
+        },
+        { new: true }
+      );
+      
+      if (result && result.amountOfPlayers === 0) {
+        await GameRoomModel.findOneAndDelete({ key: roomKey, _id: result._id });
+      }
+    } else {
+      // Atomic update for guest users
+      const result = await GameRoomModel.findOneAndUpdate(
+        { key: roomKey, "guestPlayers.id": userId },
+        { 
+          $pull: { guestPlayers: { id: userId } },
+          $inc: { amountOfPlayers: -1 }
+        },
+        { new: true }
+      );
+      
+      if (result && result.amountOfPlayers === 0) {
+        await GameRoomModel.findOneAndDelete({ key: roomKey, _id: result._id });
+      }
+    }
+
+    return res.status(200).json({ message: "Quick leave processed" });
+  } catch (err) {
+    // Even if there's an error, return 200 for beacon requests
+    console.error("❌ Error in quickLeaveRoom controller:", err);
+    return res.status(200).json({ message: "Error occurred, but acknowledged" });
   }
 }
 
@@ -313,4 +395,5 @@ export const roomController = {
   startGame,
   getPlayersInRoom,
   deleteRoom,
+  quickLeaveRoom,
 };
