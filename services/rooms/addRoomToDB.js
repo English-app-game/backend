@@ -12,8 +12,8 @@ export async function addRoomToDB(roomData) {
   const roomToCreate = {
     ...roomData,
     maxPlayers: MAX_PLAYERS,
-    players: [admin],     
-    amountOfPlayers: 1      
+    players: [],
+    amountOfPlayers: 0
   };
 
   try {
