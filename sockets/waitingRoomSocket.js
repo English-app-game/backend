@@ -65,27 +65,9 @@ export function setupWaitingRoomSocketHandlers(io) {
   async function isWaitingRoom(roomKey) {
     try {
       const room = await GameRoomModel.findOne({ key: roomKey });
-      if (!room) {
-        console.log(`🔍 Room ${roomKey} not found in database`);
-        return false;
-      }
-
-      console.log(`🔍 Room ${roomKey} found:`, {
-        currentStatus: room.currentStatus,
-        isActive: room.isActive,
-        amountOfPlayers: room.amountOfPlayers,
-        admin: room.admin,
-      });
-
-      const isWaiting = room.currentStatus === GAME_ROOM_STATUS.WAITING;
-      console.log(
-        `🔍 Room ${roomKey} status check: ${room.currentStatus} === ${GAME_ROOM_STATUS.WAITING} = ${isWaiting}`
-      );
-
-      return isWaiting;
       return room && room.currentStatus === GAME_ROOM_STATUS.WAITING;
     } catch (error) {
-      console.error("Error checking room status:", error);
+      console.error('Error checking room status:', error);
       return false;
     }
   }
@@ -130,14 +112,6 @@ export function setupWaitingRoomSocketHandlers(io) {
     });
   }
 
-  io.on("connection", (socket) => {
-    console.log(`🔌 New socket connection: ${socket.id}`);
-
-    // Add a general event listener to see what events are being received
-    const originalOn = socket.on.bind(socket);
-    socket.on = function (event, handler) {
-      if (event.includes("waiting-room") || event.includes("join")) {
-        console.log(`👂 Socket ${socket.id} registering listener for event: ${event}`);
   function scheduleUserCleanup(roomKey, userId) {
     const timerKey = `${roomKey}:${userId}`;
     
@@ -161,10 +135,6 @@ export function setupWaitingRoomSocketHandlers(io) {
   io.on("connection", (socket) => {
 
     socket.on(WAITING_ROOM_EVENTS.JOIN, async ({ roomKey, user }) => {
-      console.log(
-        `👋 User ${user.name} (${user.id}) attempting to join room ${roomKey} from socket ${socket.id}`
-      );
-
       console.log(`🚪 JOIN: ${user.name} → room ${roomKey} (socket: ${socket.id})`);
       
       if (!(await isWaitingRoom(roomKey))) {
@@ -207,9 +177,6 @@ export function setupWaitingRoomSocketHandlers(io) {
 
       waitingRooms.set(roomKey, state);
       socket.join(roomKey);
-      console.log(
-        `✅ User ${user.name} successfully joined room ${roomKey}. Total players: ${state.players.size}`
-      );
       
       console.log(`✅ ${user.name} joined. Room now has ${state.players.size} players:`, 
         Array.from(state.players.keys()));
@@ -225,10 +192,6 @@ export function setupWaitingRoomSocketHandlers(io) {
       }
 
       const isHost = state.host?.socketId === socket.id;
-
-      // Remove the leaving player from players map (both host and non-host)
-      state.players.forEach((u, userId) => {
-        if (u.socketId === socket.id) {
       
       // Remove player from active players
       for (const [userId, userData] of state.players.entries()) {
@@ -255,25 +218,6 @@ export function setupWaitingRoomSocketHandlers(io) {
           continue;
         }
 
-        if (state && state.players) {
-          for (const [userId, userData] of state.players.entries()) {
-            if (userData.socketId === socket.id) {
-              const isHost = state.host?.socketId === socket.id;
-
-              state.players.delete(userId);
-
-              if (isHost) {
-                io.in(roomKey).emit(WAITING_ROOM_EVENTS.HOST_LEFT);
-
-                setTimeout(async () => {
-                  safelyDeleteRoom(roomKey);
-                }, 2000);
-              } else {
-                broadcastPlayerList(roomKey);
-              }
-
-              break;
-            }
         for (const [userId, userData] of state.players.entries()) {
           if (userData.socketId === socket.id) {
             const isHost = state.host?.socketId === socket.id;
