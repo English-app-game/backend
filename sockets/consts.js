@@ -8,9 +8,9 @@ export const WAITING_ROOM_EVENTS = {
 };
 
 export const WAITING_ROOM_TIMEOUTS = {
-  HOST_RECONNECTION_GRACE_PERIOD: 3000,  // 3 seconds
-  HOST_LEFT_GRACE_PERIOD: 3000,          // 3 seconds
-  TEMP_DISCONNECTION_TIMEOUT: 5000,      // 5 seconds
+  HOST_RECONNECTION_GRACE_PERIOD: 3000, // 3 seconds
+  HOST_LEFT_GRACE_PERIOD: 3000, // 3 seconds
+  TEMP_DISCONNECTION_TIMEOUT: 5000, // 5 seconds
 };
 
 export const TRANSLATION_GAME_EVENTS = {
@@ -27,7 +27,8 @@ export const TRANSLATION_GAME_EVENTS = {
 };
 
 export const TRANSLATION_GAME_CONFIG = {
-  WORDS_TO_GENERATE: 5,
+  // MUST choose a prime number in order to avoid a game tie scenario.
+  WORDS_TO_GENERATE: 11,
 };
 
 // export const MEMORY_GAME_EVENTS = {
@@ -105,7 +106,7 @@ const shuffleArray = (arr) => {
 };
 
 // will later generate data from apis and translations
-export function generateWords(count = 5) {
+export function generateWords(count = TRANSLATION_GAME_CONFIG.WORDS_TO_GENERATE) {
   const shuffled = [...WORD_BANK].sort(() => 0.5 - Math.random());
   const selected = shuffled.slice(0, count);
 
