@@ -1,17 +1,57 @@
 import { addRoomToDB as addRoomToDbService } from "../services/rooms/addRoomToDB.js";
 import { validateCreateRoomFields } from "../utils/validateCreateRoomFields.js";
 import { GameRoomModel } from "../models/GameRoom.js";
+import { verifyToken } from "../utils/jwt.js";
+
 import mongoose from "mongoose";
+import { formatDateAndTime } from "../utils/formatDateAndTime.js";
 
 async function addRoomToDB(req, res) {
   try {
-    const roomData = req.body;
-    roomData.key = crypto.randomUUID();
-    if (!roomData) {
-      return res.status(400).json({
-        error: `No Room Data passed!`,
-      });
+    const body = req.body;
+    if (!body) {
+      return res.status(400).json({ error: "No Room Data passed!" });
     }
+
+    // Auth
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "No token provided" });
+
+    const token = authHeader.split(" ")[1];
+    if (!token) return res.status(401).json({ error: "Malformed token" });
+
+    let decodedUser;
+    try {
+      decodedUser = verifyToken(token);
+    } catch (err) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    if (decodedUser.isGuest) {
+      return res.status(403).json({ error: "Only registered users can create rooms" });
+    }
+
+    if (body.admin !== decodedUser.id) {
+      return res.status(403).json({ error: "You can only create rooms as yourself" });
+    }
+
+    if(body.status !== "public" && body.status !== "private") {
+      return res.status(400).json({ error: "Invalid status value" });
+    }
+
+    const roomData = {
+      key: crypto.randomUUID(),
+      admin: body.admin,
+      gameType: body.gameType,
+      level: body.level,
+      isPrivate: body.status === "private",
+      players: [],
+      isActive: false,
+      currentStatus: "waiting",
+      createdAt: formatDateAndTime(new Date()),
+      chat: [],
+      amountOfPlayers: 0,
+    };
 
     const missingFields = validateCreateRoomFields(roomData);
     if (missingFields.length > 0) {
@@ -20,26 +60,21 @@ async function addRoomToDB(req, res) {
       });
     }
 
-    if (!roomData.gameType) {
-      return res.status(400).json({ error: "Missing required field: gameType" });
-    }
-
     if (!mongoose.Types.ObjectId.isValid(roomData.gameType)) {
       return res.status(400).json({ error: "Invalid gameType ID" });
     }
 
-    // Validate that only registered users can create rooms
     if (!mongoose.Types.ObjectId.isValid(roomData.admin)) {
       return res.status(400).json({ error: "Only registered users can create rooms" });
     }
-    
-    const ALLOWED_LEVELS = ['easy', 'medium', 'hard'];
+
+    const ALLOWED_LEVELS = ["easy", "medium", "hard"];
     if (!ALLOWED_LEVELS.includes(roomData.level)) {
-    return res.status(400).json({ error: "Invalid level value" });
+      return res.status(400).json({ error: "Invalid level value" });
     }
 
+    // Create
     const newRoom = await addRoomToDbService(roomData);
-
     return res.status(201).json({
       message: "Room created successfully",
       room: newRoom,
@@ -144,12 +179,12 @@ async function removePlayerFromRoom(req, res) {
       }
 
       const isObjectId = mongoose.Types.ObjectId.isValid(userId);
-      
+
       // Check if user is actually in the room
-      const userExists = isObjectId 
+      const userExists = isObjectId
         ? room.players.some((playerId) => playerId.toString() === userId)
         : room.guestPlayers.some((g) => g.id === userId);
-      
+
       if (!userExists) {
         return res.status(200).json({ message: "Player already removed from room" });
       }
@@ -165,13 +200,15 @@ async function removePlayerFromRoom(req, res) {
 
       if (room.amountOfPlayers === 0) {
         // Use findOneAndDelete to avoid race conditions
-        const deletedRoom = await GameRoomModel.findOneAndDelete({ 
+        const deletedRoom = await GameRoomModel.findOneAndDelete({
           key: roomKey,
-          _id: room._id 
+          _id: room._id,
         });
-        
+
         if (deletedRoom) {
-          return res.status(200).json({ message: "Player removed and room deleted (no players left)" });
+          return res
+            .status(200)
+            .json({ message: "Player removed and room deleted (no players left)" });
         } else {
           return res.status(200).json({ message: "Room already deleted by another process" });
         }
@@ -180,21 +217,23 @@ async function removePlayerFromRoom(req, res) {
       // Save with version check
       await room.save();
       return res.status(200).json({ message: "Player removed from room", room });
-
     } catch (err) {
       attempt++;
-      
+
       // Handle version errors and retry
-      if ((err.name === 'VersionError' || err.name === 'DocumentNotFoundError') && attempt < MAX_RETRIES) {
-        await new Promise(resolve => setTimeout(resolve, 100 * attempt)); // exponential backoff
+      if (
+        (err.name === "VersionError" || err.name === "DocumentNotFoundError") &&
+        attempt < MAX_RETRIES
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 100 * attempt)); // exponential backoff
         continue;
       }
-      
+
       console.error("❌ Error in removePlayerFromRoom controller:", err);
       return res.status(500).json({ message: "Server error" });
     }
   }
-  
+
   return res.status(500).json({ message: "Failed after multiple retries" });
 }
 
@@ -317,7 +356,7 @@ async function deleteRoom(req, res) {
 async function quickLeaveRoom(req, res) {
   try {
     const { roomKey, userId } = req.body;
-    
+
     // This is a fire-and-forget endpoint for browser close scenarios
     // We won't wait for responses or do extensive validation
     if (!roomKey || !userId) {
@@ -326,18 +365,18 @@ async function quickLeaveRoom(req, res) {
 
     // Use atomic operations to avoid race conditions
     const isObjectId = mongoose.Types.ObjectId.isValid(userId);
-    
+
     if (isObjectId) {
       // Atomic update for registered users
       const result = await GameRoomModel.findOneAndUpdate(
         { key: roomKey, players: userId },
-        { 
+        {
           $pull: { players: userId },
-          $inc: { amountOfPlayers: -1 }
+          $inc: { amountOfPlayers: -1 },
         },
         { new: true }
       );
-      
+
       if (result && result.amountOfPlayers === 0) {
         await GameRoomModel.findOneAndDelete({ key: roomKey, _id: result._id });
       }
@@ -345,13 +384,13 @@ async function quickLeaveRoom(req, res) {
       // Atomic update for guest users
       const result = await GameRoomModel.findOneAndUpdate(
         { key: roomKey, "guestPlayers.id": userId },
-        { 
+        {
           $pull: { guestPlayers: { id: userId } },
-          $inc: { amountOfPlayers: -1 }
+          $inc: { amountOfPlayers: -1 },
         },
         { new: true }
       );
-      
+
       if (result && result.amountOfPlayers === 0) {
         await GameRoomModel.findOneAndDelete({ key: roomKey, _id: result._id });
       }
