@@ -79,7 +79,6 @@ export default function setupSocketHandlers(io) {
       if (state.users.size > 0 && state.host.id === userIdToRemove) {
         const newHost = Array.from(state.users.values())[0];
         state.host = newHost;
-        newHost.socketId = socketId;
       }
 
       console.log(`❌ Socket ${socketId} (user ${userIdToRemove}) left ${room}`);
