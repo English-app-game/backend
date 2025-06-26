@@ -227,6 +227,7 @@ export default function setupSocketHandlers(io) {
             users: Object.fromEntries(state.users),
           },
         });
+        return;
       }
 
       socket.emit(TRANSLATION_GAME_EVENTS.MATCH_FEEDBACK, {
