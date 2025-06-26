@@ -159,7 +159,7 @@ export function setupMemoryGame(io) {
         card2.flipped = true;
 
         const player = game.users[userId];
-        if (player) player.score += 1;
+        if (player) player.score += 10;
 
         io.to(roomKey).emit("memory-game/state", game);
       } else {
