@@ -14,7 +14,7 @@ export default function setupSocketHandlers(io) {
     roomKey: "",
     users: new Map(),
     host: null,
-    scoreboard: [{}],
+    scoreboard: [],
     words: [],
     gameTypeId: "",
   });
@@ -67,8 +67,24 @@ export default function setupSocketHandlers(io) {
       reconnectMap.delete(userIdToRemove);
 
       state.users.delete(userIdToRemove);
+
+      // release all words held by the user
+      for (const w of state.words) {
+        if (w.heldBy === userIdToRemove) {
+          w.heldBy = null;
+          w.lock = false;
+        }
+      }
+
+      if (state.users.size > 0 && state.host.id === userIdToRemove) {
+        const newHost = Array.from(state.users.values())[0];
+        state.host = newHost;
+        newHost.socketId = socketId;
+      }
+
       console.log(`❌ Socket ${socketId} (user ${userIdToRemove}) left ${room}`);
-      emitRoomState(room, state);
+      if (!state.end) emitRoomState(room, state);
+
       if (state.users.size === 0) {
         rooms.delete(room);
         console.log("🗑️ App room deleted (empty):", room);
@@ -83,7 +99,6 @@ export default function setupSocketHandlers(io) {
   adapter.on("delete-room", (room) => {
     if (!isAppRoom(room)) return;
 
-   
     console.log("🗑️ App room deleted:", room);
   });
 
@@ -111,7 +126,9 @@ export default function setupSocketHandlers(io) {
         return;
       }
 
-      const color = generateRandomColor();
+      const usedColors = Array.from(state.users.values()).map((u) => u.color);
+      const color = generateRandomColor(usedColors);
+
       const isNewRoom = state.users.size === 0;
 
       if (isNewRoom) {
@@ -220,6 +237,7 @@ export default function setupSocketHandlers(io) {
 
       if (allHebDisabled && allEngDisabled) {
         state.end = true;
+        state.scoreboard = Array.from(state.users.values()).sort((a, b) => b.score - a.score);
         io.in(roomKey).emit(TRANSLATION_GAME_EVENTS.END, {
           message: "🎉 Game over!",
           finalState: {

@@ -319,7 +319,7 @@ async function startGame(req, res) {
 }
 async function deleteRoom(req, res) {
   try {
-    const { userId, roomKey: key } = req.body;
+    const { userId, roomKey: key, roomAdmin } = req.body;
 
     if (!key || !userId) {
       return res.status(400).json({ message: "Room key and userId are required" });
@@ -331,7 +331,7 @@ async function deleteRoom(req, res) {
       return res.status(404).json({ message: "Room not found" });
     }
 
-    const isAdmin = room.admin.toString() === userId;
+    const isAdmin = roomAdmin || room.admin.toString() === userId;
 
     if (!isAdmin) {
       return res.status(403).json({ message: "Only the room admin can delete this room" });
