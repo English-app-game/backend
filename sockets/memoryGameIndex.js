@@ -108,6 +108,46 @@ export function setupMemoryGame(io) {
 
 });
 
+socket.on("disconnect", () => {
+    const roomKey = [...memoryGames.keys()].find(key =>
+      memoryGames.get(key).users &&
+      Object.values(memoryGames.get(key).users).some(u => u.socketId === socket.id)
+    );
+
+    if (!roomKey) return;
+
+    const game = memoryGames.get(roomKey);
+    const userEntry = Object.entries(game.users).find(([_, u]) => u.socketId === socket.id);
+    if (!userEntry) return;
+
+    const [disconnectedUserId, disconnectedUser] = userEntry;
+
+    console.log(`🔌 User disconnected: ${disconnectedUser.name} (${disconnectedUserId})`);
+
+    delete game.users[disconnectedUserId];
+
+    const allCards = [...game.words.heWords, ...game.words.enWords];
+    const flippedByUser = allCards.filter(card => card.flipped && !card.matched);
+    if (flippedByUser.length === 1) {
+      flippedByUser[0].flipped = false;
+    }
+
+    if (game.turn === disconnectedUserId) {
+      const userIds = Object.keys(game.users);
+      const nextPlayer = userIds.length > 0 ? userIds[0] : null;
+      game.turn = nextPlayer;
+    }
+
+    io.to(roomKey).emit("memory-game/player-left", {
+      userId: disconnectedUserId,
+      name: disconnectedUser.name,
+    });
+
+    io.to(roomKey).emit("memory-game/state", game);
+  });
+
+
+
     // validation for flip card
     socket.on("memory-game/flip-card", ({ roomKey, userId, cardId, lang }, ack) => {
       console.log("🧠 [SERVER] flip-card received", { roomKey, userId, cardId, lang });
