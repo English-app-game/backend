@@ -1,9 +1,9 @@
-// generates id for the cards
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
 }
 
 const memoryGames = new Map();
+
 
 function generateMemoryCards(count = 10) {
   const wordPairs = [
