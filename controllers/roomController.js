@@ -440,17 +440,13 @@ async function getWords (req,res) {
   const filteredArr = allWords.filter((word)=>{
     const length = word.length
     if (length <= 3 && level===GAME_LEVELS.EASY) {
-      console.log("1");
       return word;
     } else if (length >= 4 && length <= 6 && level===GAME_LEVELS.MEDIUM) {
-      console.log("2");
       return word;
     } else if (length > 6 && level===GAME_LEVELS.HARD) {
-      console.log("3");
       return word;
     }
   })
-  console.log(filteredArr);
   return res.status(200).json(filteredArr);
 }
 
