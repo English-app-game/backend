@@ -70,7 +70,8 @@ export function setupMemoryGame(io) {
       score: 0,
       words: {
         heWords: cards.filter(c => c.lang === "he"),
-        enWords: cards.filter(c => c.lang === "en")
+        enWords: cards.filter(c => c.lang === "en"),
+        allCards: cards
       },
       host: user,
       turn: user.id,
@@ -89,7 +90,8 @@ export function setupMemoryGame(io) {
     const cards = generateMemoryCards();
     game.words = {
       heWords: cards.filter(c => c.lang === "he"),
-      enWords: cards.filter(c => c.lang === "en")
+      enWords: cards.filter(c => c.lang === "en"),
+      allCards: cards
     };
     console.log("🔁 Refilled empty words for existing game:", JSON.stringify(game.words, null, 2));
   }
@@ -126,7 +128,7 @@ socket.on("disconnect", () => {
 
     delete game.users[disconnectedUserId];
 
-    const allCards = [...game.words.heWords, ...game.words.enWords];
+    const allCards = game.words.allCards || [...game.words.heWords, ...game.words.enWords];
     const flippedByUser = allCards.filter(card => card.flipped && !card.matched);
     if (flippedByUser.length === 1) {
       flippedByUser[0].flipped = false;
@@ -217,7 +219,7 @@ socket.on("disconnect", () => {
       }
 
       // Check for game end
-      const allCards = [...game.words.heWords, ...game.words.enWords];
+      const allCards = game.words.allCards || [...game.words.heWords, ...game.words.enWords];
       const allMatched = allCards.every((c) => c.matched);
       if (allMatched) {
         io.to(roomKey).emit("memory-game/end", {
