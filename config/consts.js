@@ -27,4 +27,6 @@ export const SAVE_SCORE_ROUTE = "/save";
 export const START_GAME_ROUTE = `/:id/start`;
 export const DELETE_ROOM_ROUTE = '/:id';
 export const QUICK_LEAVE_ROUTE = '/quick-leave';
+export const GET_WRODS = '/words';
+export const RANDOM_WORD_API_URL = "https://random-word-api.vercel.app/api";
 
