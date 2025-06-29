@@ -104,7 +104,7 @@ export default function setupSocketHandlers(io) {
   // ────── Per-Socket Events ────────────────────────────
 
   io.on("connection", (socket) => {
-    console.log("🔗 Connected:", socket.id);
+    console.log("🔗 ConnectedX:", socket.id);
 
     socket.on(TRANSLATION_GAME_EVENTS.JOIN, ({ roomKey, user, gameTypeId }) => {
       console.log(`📥 JOIN: Room ${roomKey}, User ${user.name}`);
@@ -169,6 +169,13 @@ export default function setupSocketHandlers(io) {
 
       io.to(socket.id).emit("receive-message", {
         user: socket.id,
+        message,
+      });
+    });
+
+    socket.on(TRANSLATION_GAME_EVENTS.END_GAME_MESSAGE, ({ roomKey, message }) => {
+      console.log("🔚 END GAME MESSAGE", message);
+      io.to(roomKey).emit(TRANSLATION_GAME_EVENTS.END_GAME_MESSAGE, {
         message,
       });
     });

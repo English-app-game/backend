@@ -24,11 +24,13 @@ export const TRANSLATION_GAME_EVENTS = {
   UPDATE_SCORE: "translation-game/update-score",
   MATCH_WORD: "translation-game/match-word",
   MATCH_FEEDBACK: "translation-game/match-feedback",
+  END_GAME_MESSAGE: "translation-game/end-game-message",
+
 };
 
 export const TRANSLATION_GAME_CONFIG = {
   // MUST choose a prime number in order to avoid a game tie scenario.
-  WORDS_TO_GENERATE: 11,
+  WORDS_TO_GENERATE: 4,
 };
 
 // export const MEMORY_GAME_EVENTS = {
