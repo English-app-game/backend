@@ -6,7 +6,7 @@ import { verifyToken } from "../utils/jwt.js";
 import mongoose from "mongoose";
 import { formatDateAndTime } from "../utils/formatDateAndTime.js";
 import { GAME_LEVELS } from "../models/statuses.js";
-import { RANDOM_WORD_API_URL } from "../config/consts.js";
+import { fetchWordsFromAPI } from "../services/guessWordGameAPI/randomWordsService.js";
 
 async function addRoomToDB(req, res) {
   try {
@@ -428,27 +428,30 @@ async function quickLeaveRoom(req, res) {
   }
 }
 
-async function getWords (req,res) {
-  const {amount,level} = req.query;
-  const response = await fetch(`${RANDOM_WORD_API_URL}?words=${amount}&swear=0`);
+export const getWords = async (req, res) => {
+  const { amount, level } = req.query;
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch words");
+  try {
+    const allWords = await fetchWordsFromAPI(amount);
+
+    const filteredArr = allWords.filter((word) => {
+      const length = word.length;
+      if (length <= 3 && level === GAME_LEVELS.EASY) {
+        return word;
+      } else if (length >= 4 && length <= 6 && level === GAME_LEVELS.MEDIUM) {
+        return word;
+      } else if (length > 6 && level === GAME_LEVELS.HARD) {
+        return word;
+      }
+    });
+
+    return res.status(200).json(filteredArr);
+  } catch (error) {
+    console.error("❌ Error fetching words:", error.message);
+    return res.status(500).json({ error: "Failed to get words" });
   }
+};
 
-  const allWords = await response.json();
-  const filteredArr = allWords.filter((word)=>{
-    const length = word.length
-    if (length <= 3 && level===GAME_LEVELS.EASY) {
-      return word;
-    } else if (length >= 4 && length <= 6 && level===GAME_LEVELS.MEDIUM) {
-      return word;
-    } else if (length > 6 && level===GAME_LEVELS.HARD) {
-      return word;
-    }
-  })
-  return res.status(200).json(filteredArr);
-}
 
 export const roomController = {
   addRoomToDB,
