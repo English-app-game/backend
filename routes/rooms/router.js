@@ -7,12 +7,14 @@ import {
   REMOVE_PLAYER_FROM_ROOM_ROUTE,
   START_GAME_ROUTE,
   QUICK_LEAVE_ROUTE,
+  GET_WRODS
 } from "../../config/consts.js";
 
 const router = express.Router();
 const ROOM_ROUTE_BY_KEY = "/check/:key";
 const ROOM_ROUTE_PLAYERS_BY_KEY = "/players/:key";
 
+router.route(GET_WRODS).get(roomController.getWords);
 router.route("/create").post(roomController.addRoomToDB);
 router.route("/").get(roomController.getRooms);
 router.route(ROOM_ROUTE_BY_KEY).get(roomController.checkRoomAvailabilityByKey);
