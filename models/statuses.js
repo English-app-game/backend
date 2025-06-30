@@ -4,3 +4,9 @@ export const GAME_ROOM_STATUS = {
     FINISHED: "finished",
     ERROR: "error"
   };
+
+export const GAME_LEVELS = {
+  EASY : "easy",
+  MEDIUM : "medium",
+  HARD : "hard"
+};

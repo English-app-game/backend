@@ -187,20 +187,27 @@ export default function setupSocketHandlers(io) {
       const word = state.words.find((w) => w.id === wordId);
       if (!word) return;
 
-      // If the user already holds this word → unlock it
+      // 🚫 Already locked by another user → bail out
+      if (word.lock && word.heldBy !== userId) {
+        // optional feedback:
+        // socket.emit("lock-failed", { wordId, lockedBy: word.heldBy });
+        return;
+      }
+
+      // ✅ Toggle / acquire
       if (word.heldBy === userId) {
+        // user unlocks their own word
         word.heldBy = null;
         word.lock = false;
       } else {
-        // First, release any word currently held by this user
+        // release any other word this user holds
         for (const w of state.words) {
           if (w.heldBy === userId) {
             w.heldBy = null;
             w.lock = false;
           }
         }
-
-        // Then lock the new word
+        // lock the requested word
         word.heldBy = userId;
         word.lock = true;
       }

@@ -5,6 +5,8 @@ import { verifyToken } from "../utils/jwt.js";
 
 import mongoose from "mongoose";
 import { formatDateAndTime } from "../utils/formatDateAndTime.js";
+import { GAME_LEVELS } from "../models/statuses.js";
+import { fetchWordsFromAPI } from "../services/guessWordGameAPI/randomWordsService.js";
 
 async function addRoomToDB(req, res) {
   try {
@@ -426,6 +428,31 @@ async function quickLeaveRoom(req, res) {
   }
 }
 
+export const getWords = async (req, res) => {
+  const { amount, level } = req.query;
+
+  try {
+    const allWords = await fetchWordsFromAPI(amount);
+
+    const filteredArr = allWords.filter((word) => {
+      const length = word.length;
+      if (length <= 3 && level === GAME_LEVELS.EASY) {
+        return word;
+      } else if (length >= 4 && length <= 6 && level === GAME_LEVELS.MEDIUM) {
+        return word;
+      } else if (length > 6 && level === GAME_LEVELS.HARD) {
+        return word;
+      }
+    });
+
+    return res.status(200).json(filteredArr);
+  } catch (error) {
+    console.error("❌ Error fetching words:", error.message);
+    return res.status(500).json({ error: "Failed to get words" });
+  }
+};
+
+
 export const roomController = {
   addRoomToDB,
   getRooms,
@@ -438,4 +465,5 @@ export const roomController = {
   getPlayersInRoom,
   deleteRoom,
   quickLeaveRoom,
+  getWords
 };
