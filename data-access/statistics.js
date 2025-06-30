@@ -2,17 +2,20 @@ import { ScoreModel } from "../models/Score.js";
 
 export async function aggregateTopScores() {
   return ScoreModel.aggregate([
-    { $group: { 
-        _id: "$player", 
-        totalScore: { $sum: "$score" } } },
+    {
+      $group: {
+        _id: "$player",
+        totalScore: { $sum: "$score" },
+      },
+    },
     { $sort: { totalScore: -1 } },
     {
       $lookup: {
         from: "users",
         localField: "_id",
         foreignField: "_id",
-        as: "playerInfo"
-      }
+        as: "playerInfo",
+      },
     },
     { $unwind: "$playerInfo" },
     {
@@ -20,25 +23,28 @@ export async function aggregateTopScores() {
         _id: 0,
         avatar: "$playerInfo.avatarImg",
         name: "$playerInfo.name",
-        score: "$totalScore"
-      }
-    }
+        score: "$totalScore",
+      },
+    },
   ]);
 }
 
 export async function aggregateTopPlayers() {
   return ScoreModel.aggregate([
-    { $group: { 
-        _id: "$player", 
-        count: { $sum: 1 } } },
+    {
+      $group: {
+        _id: "$player",
+        count: { $sum: 1 },
+      },
+    },
     { $sort: { count: -1 } },
     {
       $lookup: {
         from: "users",
         localField: "_id",
         foreignField: "_id",
-        as: "playerInfo"
-      }
+        as: "playerInfo",
+      },
     },
     { $unwind: "$playerInfo" },
     {
@@ -46,33 +52,42 @@ export async function aggregateTopPlayers() {
         _id: 0,
         avatar: "$playerInfo.avatarImg",
         name: "$playerInfo.name",
-        count: "$count"
-      }
-    }
+        count: "$count",
+      },
+    },
   ]);
 }
 
 export async function aggregateTopGames() {
   return ScoreModel.aggregate([
-    { $group: { 
-        _id: "$gameTypeId", 
-        count: { $sum: 1 } } },
+    {
+      $group: {
+        _id: "$roomKey",
+        gameTypeId: { $first: "$gameTypeId" },
+      },
+    },
+    {
+      $group: {
+        _id: "$gameTypeId",
+        count: { $sum: 1 },
+      },
+    },
     { $sort: { count: -1 } },
     {
       $lookup: {
         from: "gametypes",
         localField: "_id",
         foreignField: "_id",
-        as: "game"
-      }
+        as: "game",
+      },
     },
     { $unwind: "$game" },
     {
       $project: {
         _id: 0,
         name: "$game.name",
-        count: "$count"
-      }
-    }
+        count: "$count",
+      },
+    },
   ]);
 }
