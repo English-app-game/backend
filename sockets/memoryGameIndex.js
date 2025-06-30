@@ -187,7 +187,7 @@ socket.on("disconnect", async () => {
     });
 
     // checking match between 2 cards
-    socket.on("memory-game/match-check", ({ roomKey, userId, firstCard, secondCard }, ack) => {
+    socket.on("memory-game/match-check", async ({ roomKey, userId, firstCard, secondCard }, ack) => {
       const game = memoryGames.get(roomKey);
       if (!game) return ack?.({ error: "Room not found" });
 
@@ -233,6 +233,7 @@ socket.on("disconnect", async () => {
       // Check for game end
       const allCards = game.words.allCards || [...game.words.heWords, ...game.words.enWords];
       const allMatched = allCards.every((c) => c.matched);
+
       if (allMatched) {
         io.to(roomKey).emit("memory-game/end", {
           winners: Object.values(game.users).sort((a, b) => b.score - a.score),
@@ -240,6 +241,15 @@ socket.on("disconnect", async () => {
           end: true 
         });
         memoryGames.delete(roomKey);
+
+        
+    try {
+      await GameRoomModel.deleteOne({ key: roomKey });
+      console.log(`🗑️ Room ${roomKey} deleted from MongoDB after game ended`);
+    } catch (err) {
+      console.error("❌ Failed to delete room from DB at game end:", err);
+    }
+        
       }
 
       ack?.({ success: true, match: isMatch });
