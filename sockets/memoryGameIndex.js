@@ -1,3 +1,5 @@
+import { GameRoomModel } from "../models/GameRoom.js";
+
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
 }
@@ -110,7 +112,7 @@ export function setupMemoryGame(io) {
 
 });
 
-socket.on("disconnect", () => {
+socket.on("disconnect", async () => {
     const roomKey = [...memoryGames.keys()].find(key =>
       memoryGames.get(key).users &&
       Object.values(memoryGames.get(key).users).some(u => u.socketId === socket.id)
@@ -146,6 +148,16 @@ socket.on("disconnect", () => {
     });
 
     io.to(roomKey).emit("memory-game/state", game);
+
+     if (Object.keys(game.users).length === 0) {
+      memoryGames.delete(roomKey);
+      try {
+        await GameRoomModel.deleteOne({ key: roomKey });
+        console.log(`🗑️ Room ${roomKey} deleted from memory and MongoDB (all users left)`);
+      } catch (err) {
+        console.error("❌ Failed to delete room from DB:", err);
+      }
+    }
   });
 
 
@@ -224,7 +236,8 @@ socket.on("disconnect", () => {
       if (allMatched) {
         io.to(roomKey).emit("memory-game/end", {
           winners: Object.values(game.users).sort((a, b) => b.score - a.score),
-          finalScore: game.score
+          finalScore: game.score,
+          end: true 
         });
         memoryGames.delete(roomKey);
       }
