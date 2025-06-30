@@ -1,9 +1,12 @@
-// generates id for the cards
+import { GameRoomModel } from "../models/GameRoom.js";
+import {MEMORY_GAME_EVENTS} from "./consts.js";
+
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
 }
 
 const memoryGames = new Map();
+
 
 function generateMemoryCards(count = 10) {
   const wordPairs = [
@@ -53,11 +56,11 @@ function generateMemoryCards(count = 10) {
 
 //listens to the game's events
 export function setupMemoryGame(io) {
-  io.on('connection', (socket) => {
+  io.on(MEMORY_GAME_EVENTS.CONNECTION, (socket) => {
   
  console.log("🔌 New socket connected:", socket.id);
 
- socket.on("memory-game/join", ({ roomKey, user }) => {
+ socket.on(MEMORY_GAME_EVENTS.JOIN, ({ roomKey, user }) => {
  console.log("🧠 [JOIN] user joined room:", roomKey, "user:", user);
 
   let game = memoryGames.get(roomKey);
@@ -105,12 +108,12 @@ export function setupMemoryGame(io) {
 
   socket.join(roomKey);
   console.log("📤 Emitting state to room:", JSON.stringify(game, null, 2)); 
-  io.to(roomKey).emit("memory-game/state", game);
+  io.to(roomKey).emit(MEMORY_GAME_EVENTS.STATE, game);
   console.log("📤 Emitting state to room:", JSON.stringify(game, null, 2)); 
 
 });
 
-socket.on("disconnect", () => {
+socket.on(MEMORY_GAME_EVENTS.DISCONNECT, async () => {
     const roomKey = [...memoryGames.keys()].find(key =>
       memoryGames.get(key).users &&
       Object.values(memoryGames.get(key).users).some(u => u.socketId === socket.id)
@@ -140,18 +143,28 @@ socket.on("disconnect", () => {
       game.turn = nextPlayer;
     }
 
-    io.to(roomKey).emit("memory-game/player-left", {
+    io.to(roomKey).emit(MEMORY_GAME_EVENTS.PLAYER_LEFT, {
       userId: disconnectedUserId,
       name: disconnectedUser.name,
     });
 
-    io.to(roomKey).emit("memory-game/state", game);
+    io.to(roomKey).emit(MEMORY_GAME_EVENTS.STATE, game);
+
+     if (Object.keys(game.users).length === 0) {
+      memoryGames.delete(roomKey);
+      try {
+        await GameRoomModel.deleteOne({ key: roomKey });
+        console.log(`🗑️ Room ${roomKey} deleted from memory and MongoDB (all users left)`);
+      } catch (err) {
+        console.error("❌ Failed to delete room from DB:", err);
+      }
+    }
   });
 
 
 
     // validation for flip card
-    socket.on("memory-game/flip-card", ({ roomKey, userId, cardId, lang }, ack) => {
+    socket.on(MEMORY_GAME_EVENTS.FLIP_CARD, ({ roomKey, userId, cardId, lang }, ack) => {
       console.log("🧠 [SERVER] flip-card received", { roomKey, userId, cardId, lang });
       const game = memoryGames.get(roomKey);
       if (!game) return ack?.({ error: "Room not found" });
@@ -168,14 +181,14 @@ socket.on("disconnect", () => {
       if (card.matched) return ack?.({ error: "Card already matched" });
 
       card.flipped = true;
-      io.to(roomKey).emit("memory-game/state", game);
+      io.to(roomKey).emit(MEMORY_GAME_EVENTS.STATE, game);
       return ack?.({ success: true });
 
 
     });
 
     // checking match between 2 cards
-    socket.on("memory-game/match-check", ({ roomKey, userId, firstCard, secondCard }, ack) => {
+    socket.on(MEMORY_GAME_EVENTS.MATCH_CHECK, async ({ roomKey, userId, firstCard, secondCard }, ack) => {
       const game = memoryGames.get(roomKey);
       if (!game) return ack?.({ error: "Room not found" });
 
@@ -203,7 +216,7 @@ socket.on("disconnect", () => {
         const player = game.users[userId];
         if (player) player.score += 10;
 
-        io.to(roomKey).emit("memory-game/state", game);
+        io.to(roomKey).emit(MEMORY_GAME_EVENTS.STATE, game);
       } else {
         setTimeout(() => {
           card1.flipped = false;
@@ -214,19 +227,30 @@ socket.on("disconnect", () => {
           const nextPlayer = userIds[(currentIndex + 1) % userIds.length];
           game.turn = nextPlayer;
 
-          io.to(roomKey).emit("memory-game/state", game);
+          io.to(roomKey).emit(MEMORY_GAME_EVENTS.STATE, game);
         }, 1200);
       }
 
       // Check for game end
       const allCards = game.words.allCards || [...game.words.heWords, ...game.words.enWords];
       const allMatched = allCards.every((c) => c.matched);
+
       if (allMatched) {
-        io.to(roomKey).emit("memory-game/end", {
+        io.to(roomKey).emit(MEMORY_GAME_EVENTS.END, {
           winners: Object.values(game.users).sort((a, b) => b.score - a.score),
-          finalScore: game.score
+          finalScore: game.score,
+          end: true 
         });
         memoryGames.delete(roomKey);
+
+        
+    try {
+      await GameRoomModel.deleteOne({ key: roomKey });
+      console.log(`🗑️ Room ${roomKey} deleted from MongoDB after game ended`);
+    } catch (err) {
+      console.error("❌ Failed to delete room from DB at game end:", err);
+    }
+        
       }
 
       ack?.({ success: true, match: isMatch });
