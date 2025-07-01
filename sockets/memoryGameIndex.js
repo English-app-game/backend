@@ -133,6 +133,11 @@ socket.on(MEMORY_GAME_EVENTS.DISCONNECT, async () => {
 
     const allCards = game.words.allCards || [...game.words.heWords, ...game.words.enWords];
     const flippedByUser = allCards.filter(card => card.flipped && !card.matched);
+    
+    if (flippedByUser.length >= 2) {
+      return ack?.({ error: "Cannot flip more than 2 cards" });
+    }
+
     if (flippedByUser.length === 1) {
       flippedByUser[0].flipped = false;
     }
@@ -173,19 +178,30 @@ socket.on(MEMORY_GAME_EVENTS.DISCONNECT, async () => {
         return ack?.({ error: "Not your turn" });
       }
 
-      const cardArray = lang === "he" ? game.words.heWords : game.words.enWords;
-      const card = cardArray.find((c) => c.id === cardId);
+      const allCards = game.words.allCards || [...game.words.heWords, ...game.words.enWords];
 
-      if (!card) return ack?.({ error: "Card not found" });
-      if (card.flipped) return ack?.({ error: "Card already flipped" });
-      if (card.matched) return ack?.({ error: "Card already matched" });
+  //Prevent flipping more than 2 unmatched cards
+  const flippedUnmatchedCards = allCards.filter(
+    (c) => c.flipped && !c.matched
+  );
 
-      card.flipped = true;
-      io.to(roomKey).emit(MEMORY_GAME_EVENTS.STATE, game);
-      return ack?.({ success: true });
+  if (flippedUnmatchedCards.length >= 2) {
+    console.log("⛔ Cannot flip more than 2 cards:", flippedUnmatchedCards);
+    return ack?.({ error: "Cannot flip more than 2 cards" });
+  }
 
+  const cardArray = lang === "he" ? game.words.heWords : game.words.enWords;
+  const card = cardArray.find((c) => c.id === cardId);
 
-    });
+  if (!card) return ack?.({ error: "Card not found" });
+  if (card.flipped) return ack?.({ error: "Card already flipped" });
+  if (card.matched) return ack?.({ error: "Card already matched" });
+
+  card.flipped = true;
+  io.to(roomKey).emit(MEMORY_GAME_EVENTS.STATE, game);
+  return ack?.({ success: true });
+
+ });
 
     // checking match between 2 cards
     socket.on(MEMORY_GAME_EVENTS.MATCH_CHECK, async ({ roomKey, userId, firstCard, secondCard }, ack) => {
