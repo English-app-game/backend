@@ -90,7 +90,7 @@ export default function setupSocketHandlers(io) {
       } else {
         console.log(`❌ Socket ${socketId} left ${room}`, state.users);
       }
-    }, 2000);
+    }, 3000);
 
     reconnectMap.set(userIdToRemove, timer);
   });
@@ -106,52 +106,65 @@ export default function setupSocketHandlers(io) {
   io.on("connection", (socket) => {
     console.log("🔗 ConnectedX:", socket.id);
 
-    socket.on(TRANSLATION_GAME_EVENTS.JOIN, ({ roomKey, user, gameTypeId }) => {
-      console.log(`📥 JOIN: Room ${roomKey}, User ${user.name}`);
-      console.log(`📥📥📥📥📥📥📥📥📥📥📥📥📥📥📥📥📥📥`);
+    socket.on(
+      TRANSLATION_GAME_EVENTS.JOIN,
+      ({ roomKey, user, gameTypeId, playersAmount, level }) => {
+        console.log(`📥 JOIN: Room ${roomKey}, User ${user.name}`);
+        console.log(`📥📥📥📥📥📥📥📥📥📥📥📥📥📥📥📥📥📥`);
 
-      const state = rooms.get(roomKey) ?? createRoomState();
-      state.roomKey = roomKey;
-      console.log(gameTypeId);
+        const state = rooms.get(roomKey) ?? createRoomState();
+        state.roomKey = roomKey;
+        console.log(gameTypeId);
 
-      if (reconnectMap.has(user.id)) {
+        if (reconnectMap.has(user.id)) {
+          socket.join(roomKey);
+          clearTimeout(reconnectMap.get(user.id));
+          reconnectMap.delete(user.id);
+          const returningUser = state.users.get(user.id);
+          returningUser.socketId = socket.id;
+          if (state.host.id === user.id) state.host.socketId = socket.id;
+          emitRoomState(roomKey, state);
+          return;
+        }
+
+        const usedColors = Array.from(state.users.values()).map((u) => u.color);
+        const color = generateRandomColor(usedColors);
+
+        const isNewRoom = state.users.size === 0;
+
+        if (isNewRoom) {
+          state.host = { socketId: socket.id, ...user };
+          state.gameTypeId = gameTypeId;
+
+          console.log(`🏠 NEW ROOM SETUP - Room: ${roomKey}`);
+          console.log(`👑 Host: ${user.name} (${user.id})`);
+          console.log(`🎯 Game Type ID: ${gameTypeId}`);
+          console.log(`📈 Generating words for level: ${level}, players: ${playersAmount}`);
+          console.log("state", state);
+          const [hebWords, engWords] = generateWords(level, playersAmount);
+          state.words = [...hebWords, ...engWords];
+          state.hebWords = [...hebWords];
+          state.enWords = [...engWords];
+          
+          console.log(`🎪 ROOM STATE UPDATED:`);
+          console.log(`   Total words in state: ${state.words.length}`);
+          console.log(`   Hebrew words: ${state.hebWords.length}`);
+          console.log(`   English words: ${state.enWords.length}`);
+        }
+
+        state.users.set(user.id, {
+          socketId: socket.id,
+          ...user,
+          score: 0,
+          color,
+        });
+
+        rooms.set(roomKey, state);
         socket.join(roomKey);
-        clearTimeout(reconnectMap.get(user.id));
-        reconnectMap.delete(user.id);
-        const returningUser = state.users.get(user.id);
-        returningUser.socketId = socket.id;
-        if (state.host.id === user.id) state.host.socketId = socket.id;
+
         emitRoomState(roomKey, state);
-        return;
       }
-
-      const usedColors = Array.from(state.users.values()).map((u) => u.color);
-      const color = generateRandomColor(usedColors);
-
-      const isNewRoom = state.users.size === 0;
-
-      if (isNewRoom) {
-        state.host = { socketId: socket.id, ...user };
-        state.gameTypeId = gameTypeId;
-
-        const [hebWords, engWords] = generateWords(TRANSLATION_GAME_CONFIG.WORDS_TO_GENERATE);
-        state.words = [...hebWords, ...engWords];
-        state.hebWords = [...hebWords];
-        state.enWords = [...engWords];
-      }
-
-      state.users.set(user.id, {
-        socketId: socket.id,
-        ...user,
-        score: 0,
-        color,
-      });
-
-      rooms.set(roomKey, state);
-      socket.join(roomKey);
-
-      emitRoomState(roomKey, state);
-    });
+    );
 
     socket.on(TRANSLATION_GAME_EVENTS.LEAVE, ({ roomKey }, ack) => {
       socket.leave(roomKey);
