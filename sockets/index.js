@@ -136,11 +136,20 @@ export default function setupSocketHandlers(io) {
           state.host = { socketId: socket.id, ...user };
           state.gameTypeId = gameTypeId;
 
-          console.log(level, playersAmount);
+          console.log(`🏠 NEW ROOM SETUP - Room: ${roomKey}`);
+          console.log(`👑 Host: ${user.name} (${user.id})`);
+          console.log(`🎯 Game Type ID: ${gameTypeId}`);
+          console.log(`📈 Generating words for level: ${level}, players: ${playersAmount}`);
+          console.log("state", state);
           const [hebWords, engWords] = generateWords(level, playersAmount);
           state.words = [...hebWords, ...engWords];
           state.hebWords = [...hebWords];
           state.enWords = [...engWords];
+          
+          console.log(`🎪 ROOM STATE UPDATED:`);
+          console.log(`   Total words in state: ${state.words.length}`);
+          console.log(`   Hebrew words: ${state.hebWords.length}`);
+          console.log(`   English words: ${state.enWords.length}`);
         }
 
         state.users.set(user.id, {

@@ -223,8 +223,20 @@ export function generateWords(level = "easy", playerCount = 2) {
   const count = (WORDS_PER_LEVEL[level] || WORDS_PER_LEVEL.easy) * playerCount;
   const wordList = WORD_BANK[level] || WORD_BANK.easy;
 
+  console.log("🎮 WORD GENERATION DEBUG:");
+  console.log(`📊 Level: ${level}`);
+  console.log(`👥 Player Count: ${playerCount}`);
+  console.log(`🔢 Words per level: ${WORDS_PER_LEVEL[level] || WORDS_PER_LEVEL.easy}`);
+  console.log(`🧮 Total word pairs to generate: ${count}`);
+  console.log(`📚 Available words in ${level} bank: ${wordList.length}`);
+
   const shuffled = shuffleArray(wordList);
   const selected = shuffled.slice(0, count);
+
+  console.log(`✅ Selected ${selected.length} word pairs:`);
+  selected.forEach((pair, index) => {
+    console.log(`   ${index + 1}. ${pair.heb} → ${pair.eng}`);
+  });
 
   const hebWords = [];
   const engWords = [];
@@ -233,6 +245,11 @@ export function generateWords(level = "easy", playerCount = 2) {
     engWords.push({ id, word: eng, disabled: false, heldBy: null, lock: false });
     hebWords.push({ id, word: heb, disabled: false, heldBy: null, lock: false });
   });
+
+  console.log(`🇮🇱 Hebrew words generated: ${hebWords.length}`);
+  console.log(`🇺🇸 English words generated: ${engWords.length}`);
+  console.log("🎲 Words shuffled and ready for game!");
+  console.log("=" .repeat(50));
 
   return [shuffleArray(hebWords), shuffleArray(engWords)];
 }
