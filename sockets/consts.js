@@ -29,7 +29,7 @@ export const TRANSLATION_GAME_EVENTS = {
 
 export const TRANSLATION_GAME_CONFIG = {
   // MUST choose a prime number in order to avoid a game tie scenario.
-  WORDS_TO_GENERATE: 11,
+  WORDS_TO_GENERATE: 35,
 };
 
 export const MEMORY_GAME_EVENTS = {
@@ -209,6 +209,7 @@ const WORDS_PER_LEVEL = {
   medium: 8,
   hard: 10,
 };
+
 
 const shuffleArray = (arr) => {
   const copy = [...arr];
